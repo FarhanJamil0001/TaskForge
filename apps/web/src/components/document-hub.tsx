@@ -156,6 +156,9 @@ function DocumentEditor({
     if (prevDocIdRef.current !== doc.id) {
       prevDocIdRef.current = doc.id;
       editor.commands.setContent(doc.content ?? {});
+    } else {
+      // Same doc, content changed (e.g. from realtime) — sync editor
+      editor.commands.setContent(doc.content ?? {});
     }
   }, [doc.id, doc.content, editor]);
 
@@ -476,8 +479,92 @@ export function DocumentHub({
   const [selectedId, setSelectedId] = useState<string | null>(
     initialDocs[0]?.id ?? null,
   );
+  const supabase = createClient();
 
   const selectedDoc = docs.find((d) => d.id === selectedId);
+
+  // Auto-select first doc when selected doc was deleted or list changed
+  useEffect(() => {
+    if (docs.length > 0 && (!selectedId || !selectedDoc)) {
+      setSelectedId(docs[0].id);
+    }
+  }, [docs, selectedId, selectedDoc]);
+
+  // Realtime subscription: sync documents when changed by other users/tabs
+  useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let cancelled = false;
+
+    const setupSubscription = async (attempt = 0) => {
+      if (cancelled) return;
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!user || !token) {
+        if (attempt < 3) {
+          setTimeout(() => setupSubscription(attempt + 1), [500, 1500, 3000][attempt]);
+        }
+        return;
+      }
+
+      supabase.realtime.setAuth(token);
+      if (cancelled) return;
+      channel = supabase
+        .channel(`project_documents:${projectId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'project_documents',
+            filter: `project_id=eq.${projectId}`,
+          },
+          (payload) => {
+            if (payload.eventType === 'INSERT') {
+              const newDoc = payload.new as ProjectDocument;
+              setDocs((prev) => {
+                if (prev.some((d) => d.id === newDoc.id)) return prev;
+                return [...prev, newDoc].sort(
+                  (a, b) => (a.position ?? 0) - (b.position ?? 0),
+                );
+              });
+            } else if (payload.eventType === 'UPDATE') {
+              const updated = payload.new as ProjectDocument;
+              setDocs((prev) =>
+                prev.map((d) => (d.id === updated.id ? updated : d)),
+              );
+            } else if (payload.eventType === 'DELETE') {
+              const deleted = payload.old as ProjectDocument;
+              setDocs((prev) => prev.filter((d) => d.id !== deleted.id));
+              setSelectedId((id) =>
+                id === deleted.id ? null : id,
+              );
+            }
+          },
+        )
+        .subscribe((status, err) => {
+          if (status === 'CHANNEL_ERROR') {
+            supabase.auth.getSession().then(({ data: { session } }) => {
+              if (session) supabase.realtime.setAuth(session.access_token);
+            });
+          }
+        });
+    };
+
+    setupSubscription();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (session) supabase.realtime.setAuth(session.access_token);
+      },
+    );
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [projectId, supabase]);
 
   const handleDocUpdate = useCallback((updated: ProjectDocument) => {
     setDocs((prev) =>
