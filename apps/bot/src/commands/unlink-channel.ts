@@ -7,7 +7,12 @@ import { unlinkChannel } from '../api.js';
 
 export const data = new SlashCommandBuilder()
   .setName('unlink_channel')
-  .setDescription('Unlink this channel from its TaskForge project');
+  .setDescription('Unlink this channel from a TaskForge project')
+  .addStringOption((opt) =>
+    opt
+      .setName('project')
+      .setDescription('Project alias when channel has multiple (e.g. web, api). Omit to unlink the only project.'),
+  );
 
 export async function execute(interaction: ChatInputCommandInteraction) {
   await interaction.deferReply({ ephemeral: true });
@@ -20,10 +25,13 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     return;
   }
 
+  const projectAlias = interaction.options.getString('project');
+
   try {
     await unlinkChannel({
       guild_id: guild.id,
       channel_id: channel.id,
+      project_alias: projectAlias ?? undefined,
     });
 
     await interaction.editReply('Channel unlinked successfully!');

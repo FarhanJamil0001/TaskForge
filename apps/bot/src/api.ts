@@ -44,8 +44,19 @@ export function linkChannel(payload: {
   channel_id: string;
   project_id: string;
   create_mode?: 'instant' | 'reply_only';
+  alias?: string;
 }) {
   return botFetch('/api/bot/link_channel', payload);
+}
+
+export function getChannelLinks(payload: {
+  guild_id: string;
+  channel_id: string;
+}): Promise<{
+  links: Array<{ project_id: string; project_name: string; alias: string | null; create_mode: string }>;
+}> {
+  const params = new URLSearchParams(payload);
+  return botGet(`/api/bot/channel_links?${params}`);
 }
 
 export function getChannelConfig(payload: {
@@ -59,6 +70,8 @@ export function getChannelConfig(payload: {
 export function listTasks(payload: {
   guild_id: string;
   channel_id: string;
+  project_id?: string;
+  project_alias?: string;
   limit?: number;
 }): Promise<{ tasks: Array<{ id: string; title: string; status: string; priority: string; due_date: string | null; created_at: string }> }> {
   return botFetch('/api/bot/list_tasks', payload);
@@ -67,6 +80,8 @@ export function listTasks(payload: {
 export function unlinkChannel(payload: {
   guild_id: string;
   channel_id: string;
+  project_id?: string;
+  project_alias?: string;
 }) {
   return botFetch('/api/bot/unlink_channel', payload);
 }
@@ -82,6 +97,8 @@ export function completeTask(payload: {
 export function createTask(payload: {
   guild_id: string;
   channel_id: string;
+  project_id?: string;
+  project_alias?: string;
   title: string;
   description?: string | null;
   priority?: string;

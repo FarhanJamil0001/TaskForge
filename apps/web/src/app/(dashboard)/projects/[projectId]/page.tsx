@@ -94,7 +94,12 @@ export default async function ProjectBoardPage({
       </div>
 
       {/* Board table */}
-      <BoardTable boardId={board.id} initialTasks={tasks ?? []} userId={user!.id} />
+      <BoardTable
+        boardId={board.id}
+        orgId={org.id}
+        initialTasks={tasks ?? []}
+        userId={user!.id}
+      />
     </div>
   );
 }

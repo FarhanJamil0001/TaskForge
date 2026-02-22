@@ -10,7 +10,7 @@ export async function handleAutoCreate(message: Message) {
   // Spam guard
   if (message.content.length < 6) return;
   if (message.content.startsWith('/')) return;
-  if (/^!task\b/i.test(message.content.trim())) return;
+  if (/^!task\b/i.test(message.content.trim())) return; // !task handled by reply-create
 
   try {
     const config = await getChannelConfig({

@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { guild_id, channel_id } = parsed.data;
+  const { guild_id, channel_id, project_id, project_alias } = parsed.data;
   const supabase = createAdminClient();
 
   const { data: guild } = await supabase
@@ -29,24 +29,51 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { data: link } = await supabase
-    .from('discord_project_channels')
-    .select('id')
-    .eq('channel_id', channel_id)
-    .eq('guild_id', guild_id)
-    .single();
-
-  if (!link) {
-    return NextResponse.json(
-      { error: 'This channel is not linked to any project.' },
-      { status: 404 },
-    );
-  }
-
-  const { error } = await supabase
+  let deleteFilter = supabase
     .from('discord_project_channels')
     .delete()
-    .eq('id', link.id);
+    .eq('channel_id', channel_id)
+    .eq('guild_id', guild_id);
+
+  if (project_id) {
+    deleteFilter = deleteFilter.eq('project_id', project_id);
+  } else if (project_alias) {
+    const { data: link } = await supabase
+      .from('discord_project_channels')
+      .select('project_id')
+      .eq('channel_id', channel_id)
+      .eq('guild_id', guild_id)
+      .ilike('alias', project_alias)
+      .single();
+    if (!link) {
+      return NextResponse.json(
+        { error: 'No link found with that project or alias.' },
+        { status: 404 },
+      );
+    }
+    deleteFilter = deleteFilter.eq('project_id', link.project_id);
+  } else {
+    const { data: links } = await supabase
+      .from('discord_project_channels')
+      .select('id')
+      .eq('channel_id', channel_id)
+      .eq('guild_id', guild_id);
+    if (!links || links.length === 0) {
+      return NextResponse.json(
+        { error: 'This channel is not linked to any project.' },
+        { status: 404 },
+      );
+    }
+    if (links.length > 1) {
+      return NextResponse.json(
+        { error: 'Channel has multiple project links. Specify project_id or project_alias to unlink one.' },
+        { status: 400 },
+      );
+    }
+    deleteFilter = deleteFilter.eq('id', links[0].id);
+  }
+
+  const { error } = await deleteFilter;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

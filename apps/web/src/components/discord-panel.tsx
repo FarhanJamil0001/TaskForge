@@ -121,120 +121,71 @@ export function DiscordPanel({
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4 bg-black/40 backdrop-blur-sm"
           onClick={() => setOpen(false)}
         >
           <div
-            className="w-full max-w-lg rounded-xl border border-monday-border bg-white shadow-2xl"
+            className="w-full max-w-md rounded-xl border border-monday-border bg-white shadow-2xl my-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-monday-border px-6 py-4">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#5865F2]">
-                  <svg width="16" height="12" viewBox="0 0 16 12" fill="white">
+            <div className="flex items-center justify-between border-b border-monday-border px-4 py-3">
+              <div className="flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#5865F2]">
+                  <svg width="14" height="10" viewBox="0 0 16 12" fill="white">
                     <path d="M13.55 1.01A13.3 13.3 0 0010.3 0a.05.05 0 00-.05.02c-.14.25-.3.58-.41.84a12.3 12.3 0 00-3.68 0A8.5 8.5 0 005.74.02.05.05 0 005.7 0a13.27 13.27 0 00-3.26 1.01.04.04 0 00-.02.02C.36 4.2-.22 7.3.07 10.36a.05.05 0 00.02.04 13.38 13.38 0 004.02 2.03.05.05 0 00.06-.02c.31-.42.59-.87.83-1.34a.05.05 0 00-.03-.07 8.8 8.8 0 01-1.26-.6.05.05 0 01-.005-.083c.08-.06.17-.13.25-.2a.05.05 0 01.05-.006c2.65 1.21 5.52 1.21 8.13 0a.05.05 0 01.05.01c.08.06.17.13.25.19a.05.05 0 01-.004.084 8.3 8.3 0 01-1.26.6.05.05 0 00-.03.07c.24.47.52.92.83 1.34a.05.05 0 00.05.02 13.33 13.33 0 004.03-2.03.05.05 0 00.02-.04c.34-3.53-.57-6.6-2.43-9.32a.04.04 0 00-.02-.02zM5.34 8.5c-.81 0-1.47-.74-1.47-1.65s.65-1.65 1.47-1.65c.83 0 1.49.75 1.47 1.65 0 .91-.65 1.65-1.47 1.65zm5.32 0c-.81 0-1.47-.74-1.47-1.65s.65-1.65 1.47-1.65c.83 0 1.49.75 1.47 1.65 0 .91-.64 1.65-1.47 1.65z" />
                   </svg>
                 </div>
-                <div>
-                  <h2 className="text-base font-semibold text-txt-primary">Discord Setup</h2>
-                  <p className="text-xs text-txt-secondary">
-                    Connect your Discord server to {projectName}
-                  </p>
-                </div>
+                <h2 className="text-sm font-semibold text-txt-primary">Discord Setup</h2>
               </div>
               <button
                 onClick={() => setOpen(false)}
-                className="flex h-7 w-7 items-center justify-center rounded-md text-txt-secondary transition hover:bg-gray-100 hover:text-txt-primary"
+                className="flex h-6 w-6 items-center justify-center rounded text-txt-secondary transition hover:bg-gray-100"
               >
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="stroke-current">
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" className="stroke-current">
                   <path d="M2 2l10 10M12 2L2 12" strokeWidth="1.5" strokeLinecap="round" />
                 </svg>
               </button>
             </div>
 
             {/* Body */}
-            <div className="space-y-5 p-6">
+            <div className="space-y-4 p-4 max-h-[calc(100vh-8rem)] overflow-y-auto">
               {/* Step 1 */}
               <div>
-                <div className="mb-3 flex items-center gap-2">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-500 text-[11px] font-bold text-white">
-                    1
-                  </span>
-                  <h3 className="text-sm font-semibold text-txt-primary">
-                    Connect your Discord server to {orgName}
-                  </h3>
+                <h3 className="mb-2 text-xs font-semibold text-txt-primary">
+                  1. Connect to {orgName}
+                </h3>
+                <div className="grid grid-cols-2 gap-2">
+                  <CopyField label="Org ID" value={orgId} mono />
+                  <CopyField label="Code" value={connectCode ?? 'N/A'} mono />
                 </div>
-                <div className="ml-7 space-y-2.5">
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <CopyField label="Organization ID" value={orgId} mono />
-                    <CopyField label="Connect Code" value={connectCode ?? 'N/A'} mono />
-                  </div>
-                  <CommandBlock
-                    label="Run in Discord"
-                    command={`/connect org_id:${orgId} connect_code:${connectCode ?? '???'}`}
-                  />
-                </div>
+                <CommandBlock label="In Discord" command={`/connect org_id:${orgId} connect_code:${connectCode ?? '???'}`} />
               </div>
 
               {/* Step 2 */}
               <div>
-                <div className="mb-3 flex items-center gap-2">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-500 text-[11px] font-bold text-white">
-                    2
-                  </span>
-                  <h3 className="text-sm font-semibold text-txt-primary">
-                    Link a channel to this project
-                  </h3>
+                <h3 className="mb-2 text-xs font-semibold text-txt-primary">
+                  2. Link channel to {projectName}
+                </h3>
+                <CopyField label="Project ID" value={projectId} mono />
+                <div className="mt-2 space-y-1.5">
+                  <CommandBlock label="Instant" command={`/link_channel project_id:${projectId} mode:instant`} />
+                  <CommandBlock label="Reply-only" command={`/link_channel project_id:${projectId} mode:reply_only`} />
                 </div>
-                <div className="ml-7 space-y-2.5">
-                  <CopyField label="Project ID" value={projectId} mono />
-                  <div>
-                    <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-txt-secondary">
-                      Channel mode
-                    </label>
-                    <p className="mb-2 text-[13px] text-txt-secondary">
-                      <strong>instant</strong> — every message becomes a task (task channels).{' '}
-                      <strong>reply_only</strong> — use <code className="rounded bg-white px-1 text-xs">!task</code> or{' '}
-                      <code className="rounded bg-white px-1 text-xs">/task</code> to create (general channels).
-                    </p>
-                    <CommandBlock
-                      label="Task channel (instant mode)"
-                      command={`/link_channel project_id:${projectId} mode:instant`}
-                    />
-                    <div className="mt-2">
-                      <CommandBlock
-                        label="General channel (reply-only mode)"
-                        command={`/link_channel project_id:${projectId} mode:reply_only`}
-                      />
-                    </div>
-                  </div>
+                <div className="mt-2 rounded border border-monday-border bg-surface/30 px-2.5 py-2">
+                  <p className="text-[11px] font-medium text-txt-secondary mb-1">Multi-project alias</p>
+                  <p className="text-[11px] text-txt-secondary">
+                    Add <code className="bg-white px-0.5 rounded text-xs">alias:web</code> when linking 2nd+ project. Then: <code className="bg-white px-0.5 rounded text-xs">!task web Fix bug</code>, <code className="bg-white px-0.5 rounded text-xs">/task list project:web</code>
+                  </p>
                 </div>
               </div>
 
-              {/* How it works */}
-              <div className="rounded-lg bg-surface p-4">
-                <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-txt-secondary">
-                  Once linked
-                </h4>
-                <ul className="space-y-1.5 text-[13px] text-txt-secondary">
-                  <li className="flex items-start gap-2">
-                    <span className="mt-0.5 text-status-blue">&#9679;</span>
-                    <strong>Instant mode:</strong> Messages become tasks automatically
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="mt-0.5 text-status-purple">&#9679;</span>
-                    <strong>Reply-only:</strong> Use <code className="rounded bg-white px-1 text-xs">!task Fix the bug</code> or reply with <code className="rounded bg-white px-1 text-xs">!task</code>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="mt-0.5 text-status-green">&#9679;</span>
-                    React with ✅ to mark a task as done
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="mt-0.5 text-status-orange">&#9679;</span>
-                    Use <code className="rounded bg-white px-1 text-xs">/task list</code> to see recent tasks
-                  </li>
-                </ul>
+              {/* Quick ref */}
+              <div className="rounded border border-monday-border bg-surface/30 px-2.5 py-2">
+                <p className="text-[11px] font-medium text-txt-secondary mb-1">Once linked</p>
+                <p className="text-[11px] text-txt-secondary">
+                  <strong>Instant:</strong> messages → tasks. <strong>Reply-only:</strong> <code className="bg-white px-0.5 rounded text-xs">!task</code> or <code className="bg-white px-0.5 rounded text-xs">/task</code>. React ✅ to complete. <code className="bg-white px-0.5 rounded text-xs">/task list</code> to view.
+                </p>
               </div>
             </div>
           </div>

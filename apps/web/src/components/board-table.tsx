@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   DndContext,
   DragEndEvent,
@@ -36,12 +36,22 @@ const PRIORITY_ORDER: Record<TaskPriority, number> = {
   low: 1,
 };
 
+interface OrgMember {
+  id: string;
+  user_id: string;
+  email: string;
+  role: string;
+  created_at: string;
+}
+
 export function BoardTable({
   boardId,
+  orgId,
   initialTasks,
   userId,
 }: {
   boardId: string;
+  orgId: string;
   initialTasks: Task[];
   userId: string;
 }) {
@@ -55,6 +65,55 @@ export function BoardTable({
   const [showCreate, setShowCreate] = useState(false);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const supabase = createClient();
+  const editTaskRef = useRef(editTask);
+  editTaskRef.current = editTask;
+
+  const [orgMembers, setOrgMembers] = useState<OrgMember[]>([]);
+  useEffect(() => {
+    if (!orgId) return;
+    supabase
+      .rpc('get_org_members_with_email', { p_org_id: orgId })
+      .then(({ data }) => setOrgMembers(data ?? []));
+  }, [orgId, supabase]);
+
+  // Real-time subscription: sync tasks instantly when changed elsewhere (e.g. Discord)
+  useEffect(() => {
+    const channel = supabase
+      .channel(`tasks:board:${boardId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tasks',
+          filter: `board_id=eq.${boardId}`,
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const newTask = payload.new as Task;
+            setTasks((prev) => {
+              if (prev.some((t) => t.id === newTask.id)) return prev;
+              return [newTask, ...prev];
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            const updated = payload.new as Task;
+            setTasks((prev) =>
+              prev.map((t) => (t.id === updated.id ? updated : t)),
+            );
+            if (editTaskRef.current?.id === updated.id) setEditTask(updated);
+          } else if (payload.eventType === 'DELETE') {
+            const deleted = payload.old as Task;
+            setTasks((prev) => prev.filter((t) => t.id !== deleted.id));
+            if (editTaskRef.current?.id === deleted.id) setEditTask(null);
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [boardId, supabase]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -151,6 +210,46 @@ export function BoardTable({
     async (taskId: string, priority: TaskPriority) => {
       setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, priority } : t)));
       await supabase.from('tasks').update({ priority }).eq('id', taskId);
+    },
+    [supabase],
+  );
+
+  const handleAssigneeChange = useCallback(
+    async (taskId: string, assigneeUserId: string | null) => {
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, assignee_user_id: assigneeUserId } : t)),
+      );
+      await supabase.from('tasks').update({ assignee_user_id: assigneeUserId }).eq('id', taskId);
+    },
+    [supabase],
+  );
+
+  const handleDueDateChange = useCallback(
+    async (taskId: string, dueDate: string | null) => {
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, due_date: dueDate } : t)),
+      );
+      await supabase.from('tasks').update({ due_date: dueDate }).eq('id', taskId);
+    },
+    [supabase],
+  );
+
+  const handleDescriptionChange = useCallback(
+    async (taskId: string, description: string | null) => {
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, description } : t)),
+      );
+      await supabase.from('tasks').update({ description }).eq('id', taskId);
+    },
+    [supabase],
+  );
+
+  const handleTitleChange = useCallback(
+    async (taskId: string, title: string) => {
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, title } : t)),
+      );
+      await supabase.from('tasks').update({ title }).eq('id', taskId);
     },
     [supabase],
   );
@@ -256,7 +355,12 @@ export function BoardTable({
               onTaskClick={setEditTask}
               onStatusChange={handleStatusChange}
               onPriorityChange={handlePriorityChange}
+              onAssigneeChange={handleAssigneeChange}
+              onDueDateChange={handleDueDateChange}
+              onDescriptionChange={handleDescriptionChange}
+              onTitleChange={handleTitleChange}
               onAddTask={handleInlineAdd}
+              orgMembers={orgMembers}
             />
           ))}
         </div>

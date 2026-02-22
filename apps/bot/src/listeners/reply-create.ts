@@ -1,8 +1,15 @@
 import { Message, EmbedBuilder } from 'discord.js';
-import { createTask } from '../api.js';
+import { createTask, getChannelConfig } from '../api.js';
 import { parsePriority, parseDueDate } from '../parsers.js';
 
 const TRIGGER = /^!task\b/i;
+const MAX_PROCESSED = 500;
+const processedIds = new Set<string>();
+
+function markProcessed(id: string) {
+  if (processedIds.size >= MAX_PROCESSED) processedIds.clear();
+  processedIds.add(id);
+}
 
 export async function handleReplyCreate(message: Message) {
   if (message.author.bot) return;
@@ -10,14 +17,37 @@ export async function handleReplyCreate(message: Message) {
   if (!message.content) return;
   if (!TRIGGER.test(message.content.trim())) return;
 
-  const opts = message.content.replace(TRIGGER, '').trim();
+  const dedupeKey = `${message.guild.id}:${message.channel.id}:${message.id}`;
+  if (processedIds.has(dedupeKey)) return;
+  markProcessed(dedupeKey);
+
+  let opts = message.content.replace(TRIGGER, '').trim();
+
+  let projectAlias: string | undefined;
+  try {
+    const config = await getChannelConfig({
+      guild_id: message.guild.id,
+      channel_id: message.channel.id,
+    });
+    if (config.linked && config.links && config.links.length >= 1) {
+      const firstWord = opts.split(/\s+/)[0]?.toLowerCase();
+      const aliases = config.links.filter((l) => l.alias).map((l) => l.alias!.toLowerCase());
+      if (firstWord && aliases.includes(firstWord)) {
+        projectAlias = config.links.find((l) => l.alias?.toLowerCase() === firstWord)?.alias;
+        opts = opts.slice(firstWord.length).trim();
+      }
+    }
+  } catch {
+    // Ignore — createTask will handle channel not linked
+  }
+
   const priority = parsePriority(opts) ?? 'medium';
   const dueDate = parseDueDate(opts);
 
   if (message.reference?.messageId) {
-    await createFromReply(message, opts, priority, dueDate);
+    await createFromReply(message, opts, priority, dueDate, projectAlias);
   } else {
-    await createFromMessage(message, opts, priority, dueDate);
+    await createFromMessage(message, opts, priority, dueDate, projectAlias);
   }
 }
 
@@ -26,6 +56,7 @@ async function createFromReply(
   opts: string,
   priority: string,
   dueDate: string | null,
+  projectAlias?: string,
 ) {
   let original: Message;
   try {
@@ -48,6 +79,7 @@ async function createFromReply(
     await createTask({
       guild_id: message.guild.id,
       channel_id: message.channel.id,
+      project_alias: projectAlias,
       title,
       description,
       priority,
@@ -85,6 +117,7 @@ async function createFromMessage(
   opts: string,
   priority: string,
   dueDate: string | null,
+  projectAlias?: string,
 ) {
   const title = opts.slice(0, 500).trim();
   if (!title) {
@@ -98,6 +131,7 @@ async function createFromMessage(
     await createTask({
       guild_id: message.guild.id,
       channel_id: message.channel.id,
+      project_alias: projectAlias,
       title,
       description: opts.length > 500 ? opts : null,
       priority,

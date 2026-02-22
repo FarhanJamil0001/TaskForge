@@ -19,25 +19,31 @@ export async function GET(req: NextRequest) {
 
   const supabase = createAdminClient();
 
-  const { data: links } = await supabase
+  const { data: links, error } = await supabase
     .from('discord_project_channels')
     .select('project_id, alias, create_mode')
     .eq('channel_id', channelId)
     .eq('guild_id', guildId)
     .eq('enabled', true);
 
-  if (!links || links.length === 0) {
-    return NextResponse.json({ linked: false });
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Auto-create only when exactly one link and it's instant mode
-  const singleLink = links.length === 1 ? links[0] : null;
-  const create_mode =
-    singleLink?.create_mode === 'instant' ? 'instant' : null;
+  const projectIds = (links ?? []).map((l) => l.project_id);
+  const { data: projects } =
+    projectIds.length > 0
+      ? await supabase.from('projects').select('id, name').in('id', projectIds)
+      : { data: [] };
 
-  return NextResponse.json({
-    linked: true,
-    create_mode,
-    links: links.map((l) => ({ project_id: l.project_id, alias: l.alias })),
-  });
+  const projectMap = new Map((projects ?? []).map((p) => [p.id, p.name]));
+
+  const result = (links ?? []).map((l) => ({
+    project_id: l.project_id,
+    project_name: projectMap.get(l.project_id) ?? 'Unknown',
+    alias: l.alias,
+    create_mode: l.create_mode,
+  }));
+
+  return NextResponse.json({ links: result });
 }

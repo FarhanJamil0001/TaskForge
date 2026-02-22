@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { guild_id, channel_id, project_id, create_mode } = parsed.data;
+  const { guild_id, channel_id, project_id, create_mode, alias } = parsed.data;
   const supabase = createAdminClient();
 
   const { data: guild } = await supabase
@@ -42,11 +42,35 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const { data: existingLinks } = await supabase
+    .from('discord_project_channels')
+    .select('project_id')
+    .eq('channel_id', channel_id)
+    .eq('guild_id', guild_id)
+    .eq('enabled', true);
+
+  const isNewProject = !(existingLinks ?? []).some((l) => l.project_id === project_id);
+  const hasOtherProjects = (existingLinks ?? []).length >= 1;
+
+  if (isNewProject && hasOtherProjects && !alias) {
+    return NextResponse.json(
+      { error: 'When linking multiple projects to a channel, an alias is required (e.g. "web", "api")' },
+      { status: 400 },
+    );
+  }
+
   const { data: link, error } = await supabase
     .from('discord_project_channels')
     .upsert(
-      { guild_id, channel_id, project_id, enabled: true, create_mode: create_mode ?? 'instant' },
-      { onConflict: 'channel_id' },
+      {
+        guild_id,
+        channel_id,
+        project_id,
+        enabled: true,
+        create_mode: create_mode ?? 'instant',
+        alias: alias ?? null,
+      },
+      { onConflict: 'channel_id,project_id' },
     )
     .select()
     .single();

@@ -18,6 +18,11 @@ export const data = new SlashCommandBuilder()
       )
       .addStringOption((opt) =>
         opt
+          .setName('project')
+          .setDescription('Project alias when channel has multiple (e.g. web, api)'),
+      )
+      .addStringOption((opt) =>
+        opt
           .setName('priority')
           .setDescription('Priority: low, medium, high')
           .addChoices(
@@ -35,6 +40,11 @@ export const data = new SlashCommandBuilder()
     sub
       .setName('list')
       .setDescription('List recent tasks from the linked project')
+      .addStringOption((opt) =>
+        opt
+          .setName('project')
+          .setDescription('Project alias when channel has multiple (e.g. web, api)'),
+      )
       .addIntegerOption((opt) =>
         opt
           .setName('limit')
@@ -66,6 +76,7 @@ async function executeCreate(interaction: ChatInputCommandInteraction) {
   }
 
   const title = interaction.options.getString('title', true);
+  const projectAlias = interaction.options.getString('project');
   const priorityOpt = interaction.options.getString('priority');
   const dueOpt = interaction.options.getString('due');
   const assignee = interaction.options.getUser('assignee');
@@ -77,6 +88,7 @@ async function executeCreate(interaction: ChatInputCommandInteraction) {
     await createTask({
       guild_id: guild.id,
       channel_id: channel.id,
+      project_alias: projectAlias ?? undefined,
       title,
       priority,
       due_date: dueDate,
@@ -101,12 +113,14 @@ async function executeList(interaction: ChatInputCommandInteraction) {
     return;
   }
 
+  const projectAlias = interaction.options.getString('project');
   const limit = interaction.options.getInteger('limit') ?? 10;
 
   try {
     const { tasks } = await listTasks({
       guild_id: guild.id,
       channel_id: channel.id,
+      project_alias: projectAlias ?? undefined,
       limit,
     });
 

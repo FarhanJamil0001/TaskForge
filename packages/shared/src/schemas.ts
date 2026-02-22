@@ -18,11 +18,14 @@ export const linkChannelSchema = z.object({
   channel_id: z.string().min(1),
   project_id: z.string().uuid(),
   create_mode: createModeEnum.optional().default('instant'),
+  alias: z.string().min(1).max(32).optional(),
 });
 
 export const createTaskFromBotSchema = z.object({
   guild_id: z.string().min(1),
   channel_id: z.string().min(1),
+  project_id: z.string().uuid().optional(),
+  project_alias: z.string().min(1).max(32).optional(),
   title: z.string().min(1).max(500),
   description: z.string().max(4000).nullable().optional(),
   priority: taskPriorityEnum.optional().default('medium'),
@@ -75,6 +78,8 @@ export const completeTaskFromBotSchema = z.object({
 export const unlinkChannelSchema = z.object({
   guild_id: z.string().min(1),
   channel_id: z.string().min(1),
+  project_id: z.string().uuid().optional(),
+  project_alias: z.string().min(1).max(32).optional(),
 });
 
 export type CompleteTaskFromBotPayload = z.infer<typeof completeTaskFromBotSchema>;

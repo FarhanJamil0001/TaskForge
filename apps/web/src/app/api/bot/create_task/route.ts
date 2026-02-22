@@ -16,6 +16,8 @@ export async function POST(req: NextRequest) {
   const {
     guild_id,
     channel_id,
+    project_id: projectIdParam,
+    project_alias: projectAliasParam,
     title,
     description,
     priority,
@@ -28,25 +30,49 @@ export async function POST(req: NextRequest) {
 
   const supabase = createAdminClient();
 
-  const { data: channelLink } = await supabase
+  const { data: channelLinks } = await supabase
     .from('discord_project_channels')
-    .select('project_id')
+    .select('project_id, alias')
     .eq('channel_id', channel_id)
     .eq('guild_id', guild_id)
-    .eq('enabled', true)
-    .single();
+    .eq('enabled', true);
 
-  if (!channelLink) {
+  if (!channelLinks || channelLinks.length === 0) {
     return NextResponse.json(
       { error: 'Channel not linked to any project' },
       { status: 404 },
     );
   }
 
+  let resolvedProjectId: string;
+  if (projectIdParam && channelLinks.some((l) => l.project_id === projectIdParam)) {
+    resolvedProjectId = projectIdParam;
+  } else if (projectAliasParam) {
+    const byAlias = channelLinks.find(
+      (l) => l.alias?.toLowerCase() === projectAliasParam.toLowerCase(),
+    );
+    if (!byAlias) {
+      const aliases = channelLinks.filter((l) => l.alias).map((l) => `"${l.alias}"`).join(', ');
+      return NextResponse.json(
+        { error: `Unknown project alias. Use one of: ${aliases || '(no aliases set)'}` },
+        { status: 400 },
+      );
+    }
+    resolvedProjectId = byAlias.project_id;
+  } else if (channelLinks.length === 1) {
+    resolvedProjectId = channelLinks[0].project_id;
+  } else {
+    const aliases = channelLinks.filter((l) => l.alias).map((l) => `!task ${l.alias} <title>`).join(' or ');
+    return NextResponse.json(
+      { error: `Specify project: ${aliases || 'link projects with aliases first'}` },
+      { status: 400 },
+    );
+  }
+
   const { data: board } = await supabase
     .from('boards')
     .select('id')
-    .eq('project_id', channelLink.project_id)
+    .eq('project_id', resolvedProjectId)
     .order('is_default', { ascending: false })
     .order('created_at', { ascending: true })
     .limit(1)

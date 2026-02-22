@@ -25,6 +25,11 @@ export const data = new SlashCommandBuilder()
           value: 'reply_only',
         },
       ),
+  )
+  .addStringOption((opt) =>
+    opt
+      .setName('alias')
+      .setDescription('Short name for this project when channel has multiple (e.g. web, api)'),
   );
 
 export async function execute(interaction: ChatInputCommandInteraction) {
@@ -32,6 +37,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
   const projectId = interaction.options.getString('project_id', true);
   const mode = (interaction.options.getString('mode') as 'instant' | 'reply_only') ?? 'instant';
+  const alias = interaction.options.getString('alias');
   const guild = interaction.guild;
   const channel = interaction.channel;
 
@@ -46,6 +52,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       channel_id: channel.id,
       project_id: projectId,
       create_mode: mode,
+      alias: alias ?? undefined,
     });
 
     await interaction.editReply(`Channel linked successfully! (mode: ${mode})`);
@@ -108,6 +115,26 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             'Works with or without replying. Add `urgent` or `due Mar 1` for options.',
           inline: false,
         },
+        {
+          name: '🏷️  Project aliases (multi-project channels)',
+          value:
+            'When a channel is linked to **multiple projects**, use an alias to specify which project:\n\n' +
+            '• **Linking:** Add `alias:web` when linking the 2nd+ project (required)\n' +
+            '• **Create:** `!task web Fix the bug` or `/task create project:web title:Fix the bug`\n' +
+            '• **Reply:** `!task web` (or `!task api`) when replying to a message\n' +
+            '• **List:** `/task list project:web`\n\n' +
+            (alias ? `This project is aliased as \`${alias}\`.` : 'Single project: alias optional.'),
+          inline: false,
+        },
+        ...(alias
+          ? [
+              {
+                name: '🏷️  Your alias',
+                value: `Use \`${alias}\` in commands: \`!task ${alias} Fix the bug\`, \`/task list project:${alias}\``,
+                inline: false as const,
+              },
+            ]
+          : []),
         {
           name: '🛠️  Manual task creation',
           value:

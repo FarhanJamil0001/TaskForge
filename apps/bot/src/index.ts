@@ -48,8 +48,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
 });
 
-client.on(Events.MessageCreate, handleAutoCreate);
-client.on(Events.MessageCreate, handleReplyCreate);
+client.on(Events.MessageCreate, async (message) => {
+  await handleReplyCreate(message);
+  await handleAutoCreate(message);
+});
 client.on(Events.MessageReactionAdd, handleReactionComplete);
 
 const token = process.env.DISCORD_BOT_TOKEN;

@@ -54,7 +54,12 @@ export default async function BoardPage({
       </div>
 
       {/* Board table */}
-      <BoardTable boardId={boardId} initialTasks={tasks ?? []} userId={user!.id} />
+      <BoardTable
+        boardId={boardId}
+        orgId={board.projects.org_id}
+        initialTasks={tasks ?? []}
+        userId={user!.id}
+      />
     </div>
   );
 }

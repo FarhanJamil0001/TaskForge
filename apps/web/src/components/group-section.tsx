@@ -5,11 +5,22 @@ import { useDraggable, useDroppable } from '@dnd-kit/core';
 import type { Task, TaskStatus, TaskPriority } from '@taskforge/shared';
 import { StatusPill } from './status-pill';
 import { PriorityPill } from './priority-pill';
+import { EditableOwnerCell } from './editable-owner-cell';
+import { EditableDueDateCell } from './editable-due-date-cell';
+import { EditableNotesCell } from './editable-notes-cell';
 
 export interface GroupConfig {
   status: TaskStatus;
   label: string;
   color: string;
+}
+
+interface OrgMember {
+  id: string;
+  user_id: string;
+  email: string;
+  role: string;
+  created_at: string;
 }
 
 interface GroupSectionProps {
@@ -20,47 +31,112 @@ interface GroupSectionProps {
   onTaskClick: (task: Task) => void;
   onStatusChange: (taskId: string, status: TaskStatus) => void;
   onPriorityChange: (taskId: string, priority: TaskPriority) => void;
+  onAssigneeChange: (taskId: string, assigneeUserId: string | null) => void;
+  onDueDateChange: (taskId: string, dueDate: string | null) => void;
+  onDescriptionChange: (taskId: string, description: string | null) => void;
+  onTitleChange: (taskId: string, title: string) => void;
   onAddTask: (title: string, status: TaskStatus) => void;
+  orgMembers: OrgMember[];
 }
 
 const COL_GRID = 'grid-cols-[minmax(280px,2.5fr)_90px_140px_120px_110px_minmax(120px,1.5fr)]';
 
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const isOverdue = date < now;
-  const month = date.toLocaleString('default', { month: 'short' });
-  const day = date.getDate();
-  return `${month} ${day}${isOverdue ? ' ⚠' : ''}`;
-}
+function EditableTitleCell({
+  task,
+  onTaskClick,
+  onTitleChange,
+  listeners,
+  attributes,
+  GripIcon,
+}: {
+  task: Task;
+  onTaskClick: (task: Task) => void;
+  onTitleChange: (taskId: string, title: string) => void;
+  listeners?: Record<string, unknown>;
+  attributes?: Record<string, unknown>;
+  GripIcon: () => JSX.Element;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [localTitle, setLocalTitle] = useState(task.title);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-function isOverdue(dateStr: string | null): boolean {
-  if (!dateStr) return false;
-  return new Date(dateStr) < new Date();
-}
+  useEffect(() => {
+    setLocalTitle(task.title);
+  }, [task.title]);
 
-function OwnerAvatar({ userId }: { userId: string | null }) {
-  if (!userId) {
-    return (
-      <div className="mx-auto flex h-[30px] w-[30px] items-center justify-center rounded-full border-2 border-dashed border-gray-300 text-gray-300">
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="stroke-current">
-          <circle cx="7" cy="5" r="3" strokeWidth="1.2" />
-          <path d="M2 13c0-2.8 2.2-5 5-5s5 2.2 5 5" strokeWidth="1.2" />
-        </svg>
-      </div>
-    );
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+
+  function handleBlur() {
+    const trimmed = localTitle.trim();
+    if (trimmed && trimmed !== task.title) {
+      onTitleChange(task.id, trimmed);
+    } else {
+      setLocalTitle(task.title);
+    }
+    setEditing(false);
   }
 
-  const hue = userId.charCodeAt(0) * 37 + userId.charCodeAt(1) * 17;
-  const color = `hsl(${hue % 360}, 60%, 55%)`;
-
   return (
-    <div
-      className="mx-auto flex h-[30px] w-[30px] items-center justify-center rounded-full text-[11px] font-semibold text-white"
-      style={{ backgroundColor: color }}
-      title={userId}
-    >
-      {userId.slice(0, 2).toUpperCase()}
+    <div className="flex items-center px-2 py-2 font-medium text-txt-primary">
+      <button
+        className="mr-1.5 shrink-0 cursor-grab rounded p-1 text-gray-300 opacity-0 transition hover:text-gray-500 active:cursor-grabbing group-hover/row:opacity-100"
+        {...listeners}
+        {...attributes}
+      >
+        <GripIcon />
+      </button>
+      {editing ? (
+        <input
+          ref={inputRef}
+          value={localTitle}
+          onChange={(e) => setLocalTitle(e.target.value)}
+          onBlur={handleBlur}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.currentTarget.blur();
+            }
+            if (e.key === 'Escape') {
+              setLocalTitle(task.title);
+              setEditing(false);
+            }
+          }}
+          onClick={(e) => e.stopPropagation()}
+          className="min-w-0 flex-1 truncate bg-transparent focus:outline-none focus:ring-1 focus:ring-brand-500"
+        />
+      ) : (
+        <>
+          <span
+            className="cursor-pointer truncate transition-colors hover:text-brand-500"
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditing(true);
+            }}
+          >
+            {task.title}
+          </span>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onTaskClick(task);
+            }}
+            className="ml-1 flex-shrink-0 rounded p-0.5 text-gray-400 opacity-0 transition hover:text-brand-500 group-hover/row:opacity-100"
+            title="Open task details"
+            aria-label="Open task details"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="stroke-current">
+              <path d="M7 2l3 3-6 6H1V9l6-7z" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </>
+      )}
+      {task.discord_message_url && (
+        <span className="ml-2 flex-shrink-0 text-[10px] text-status-purple" title="From Discord">
+          ⟡
+        </span>
+      )}
     </div>
   );
 }
@@ -83,11 +159,21 @@ function DraggableTaskRow({
   onTaskClick,
   onStatusChange,
   onPriorityChange,
+  onAssigneeChange,
+  onDueDateChange,
+  onDescriptionChange,
+  onTitleChange,
+  orgMembers,
 }: {
   task: Task;
   onTaskClick: (task: Task) => void;
   onStatusChange: (taskId: string, status: TaskStatus) => void;
   onPriorityChange: (taskId: string, priority: TaskPriority) => void;
+  onAssigneeChange: (taskId: string, assigneeUserId: string | null) => void;
+  onDueDateChange: (taskId: string, dueDate: string | null) => void;
+  onDescriptionChange: (taskId: string, description: string | null) => void;
+  onTitleChange: (taskId: string, title: string) => void;
+  orgMembers: OrgMember[];
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: task.id,
@@ -102,30 +188,22 @@ function DraggableTaskRow({
       }`}
     >
       {/* Task title with drag handle */}
-      <div className="flex items-center px-2 py-2 font-medium text-txt-primary">
-        <button
-          className="mr-1.5 shrink-0 cursor-grab rounded p-1 text-gray-300 opacity-0 transition hover:text-gray-500 active:cursor-grabbing group-hover/row:opacity-100"
-          {...listeners}
-          {...attributes}
-        >
-          <GripIcon />
-        </button>
-        <span
-          className="cursor-pointer truncate transition-colors hover:text-brand-500"
-          onClick={() => onTaskClick(task)}
-        >
-          {task.title}
-        </span>
-        {task.discord_message_url && (
-          <span className="ml-2 flex-shrink-0 text-[10px] text-status-purple" title="From Discord">
-            ⟡
-          </span>
-        )}
-      </div>
+      <EditableTitleCell
+        task={task}
+        onTaskClick={onTaskClick}
+        onTitleChange={onTitleChange}
+        listeners={listeners as unknown as Record<string, unknown>}
+        attributes={attributes as unknown as Record<string, unknown>}
+        GripIcon={GripIcon}
+      />
 
       {/* Owner */}
       <div className="flex items-center border-l border-monday-border py-1">
-        <OwnerAvatar userId={task.assignee_user_id} />
+        <EditableOwnerCell
+          assigneeUserId={task.assignee_user_id}
+          orgMembers={orgMembers}
+          onChange={(userId) => onAssigneeChange(task.id, userId)}
+        />
       </div>
 
       {/* Status */}
@@ -134,14 +212,11 @@ function DraggableTaskRow({
       </div>
 
       {/* Due date */}
-      <div className="flex items-center justify-center border-l border-monday-border px-2 py-2 text-center text-[13px]">
-        {task.due_date ? (
-          <span className={isOverdue(task.due_date) ? 'font-medium text-status-red' : 'text-txt-primary'}>
-            {formatDate(task.due_date)}
-          </span>
-        ) : (
-          <span className="text-gray-300">—</span>
-        )}
+      <div className="flex items-center border-l border-monday-border px-2 py-1">
+        <EditableDueDateCell
+          dueDate={task.due_date}
+          onChange={(date) => onDueDateChange(task.id, date)}
+        />
       </div>
 
       {/* Priority */}
@@ -153,8 +228,11 @@ function DraggableTaskRow({
       </div>
 
       {/* Notes */}
-      <div className="flex items-center border-l border-monday-border px-3 py-2 text-[13px] text-txt-secondary">
-        <span className="truncate">{task.description || ''}</span>
+      <div className="flex items-center border-l border-monday-border px-2 py-1">
+        <EditableNotesCell
+          description={task.description}
+          onChange={(desc) => onDescriptionChange(task.id, desc)}
+        />
       </div>
     </div>
   );
@@ -168,7 +246,12 @@ export function GroupSection({
   onTaskClick,
   onStatusChange,
   onPriorityChange,
+  onAssigneeChange,
+  onDueDateChange,
+  onDescriptionChange,
+  onTitleChange,
   onAddTask,
+  orgMembers,
 }: GroupSectionProps) {
   const [adding, setAdding] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -243,6 +326,11 @@ export function GroupSection({
                 onTaskClick={onTaskClick}
                 onStatusChange={onStatusChange}
                 onPriorityChange={onPriorityChange}
+                onAssigneeChange={onAssigneeChange}
+                onDueDateChange={onDueDateChange}
+                onDescriptionChange={onDescriptionChange}
+                onTitleChange={onTitleChange}
+                orgMembers={orgMembers}
               />
             ))}
 
