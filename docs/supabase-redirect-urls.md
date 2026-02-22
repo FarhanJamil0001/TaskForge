@@ -37,3 +37,19 @@ If you prefer fewer entries, the wildcard covers most cases:
 3. Set **Site URL** to your main production URL
 4. Add the **Redirect URLs** above
 5. Save
+
+---
+
+## Debugging Realtime in production
+
+If Realtime still doesn't work after setting redirect URLs:
+
+1. **Enable debug logging** — In Vercel, add an environment variable:
+   - Name: `NEXT_PUBLIC_DEBUG_REALTIME`
+   - Value: `true`
+2. Redeploy, then open your app and the **browser DevTools console** (F12 → Console).
+3. Look for `[Realtime debug]` and `[Realtime ...]` messages:
+   - **hasUser / hasToken** — If false, auth session isn't available (cookie/timing issue).
+   - **Subscribe status** — Should show `SUBSCRIBED`. If `CHANNEL_ERROR`, check Supabase Dashboard → Database → Replication (ensure `tasks` is in the publication).
+   - **transport** — WebSocket connection events (connected, heartbeat, errors).
+4. [Supabase Realtime Inspector](https://realtime.supabase.com/inspector/new) — Connect with your project URL and anon key to see live connections and messages.

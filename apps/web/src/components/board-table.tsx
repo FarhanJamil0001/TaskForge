@@ -102,6 +102,8 @@ export function BoardTable({
     };
   }, [refetchTasks]);
 
+  const debugRealtime = process.env.NEXT_PUBLIC_DEBUG_REALTIME === 'true';
+
   // Real-time subscription: sync tasks instantly when changed elsewhere (e.g. Discord)
   // Must wait for auth session before subscribing — Realtime uses RLS and requires a valid JWT.
   // On Vercel/production, cookies may not be ready on first paint; we retry with backoff.
@@ -115,14 +117,26 @@ export function BoardTable({
       const { data: { user } } = await supabase.auth.getUser();
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
+      if (debugRealtime) {
+        console.log('[Realtime debug]', {
+          attempt,
+          hasUser: !!user,
+          hasToken: !!token,
+          userId: user?.id,
+        });
+      }
       if (!user || !token) {
         if (attempt < 3) {
+          if (debugRealtime) console.log('[Realtime debug] No auth, retry in', [500, 1500, 3000][attempt], 'ms');
           setTimeout(() => setupSubscription(attempt + 1), [500, 1500, 3000][attempt]);
+        } else if (debugRealtime) {
+          console.warn('[Realtime debug] Gave up after 3 attempts — no auth session');
         }
         return;
       }
 
       supabase.realtime.setAuth(token);
+      if (debugRealtime) console.log('[Realtime debug] setAuth called, subscribing to board', boardId);
 
       if (cancelled) return;
       channel = supabase
@@ -136,6 +150,7 @@ export function BoardTable({
             filter: `board_id=eq.${boardId}`,
           },
           (payload) => {
+            if (debugRealtime) console.log('[Realtime debug] Event received:', payload.eventType, payload);
             if (payload.eventType === 'INSERT') {
               const newTask = payload.new as Task;
               setTasks((prev) => {
@@ -155,8 +170,10 @@ export function BoardTable({
             }
           },
         )
-        .subscribe((status) => {
+        .subscribe((status, err) => {
+          if (debugRealtime) console.log('[Realtime debug] Subscribe status:', status, err ?? '');
           if (status === 'CHANNEL_ERROR') {
+            if (debugRealtime) console.warn('[Realtime debug] Channel error, refreshing auth');
             supabase.auth.getSession().then(({ data: { session } }) => {
               if (session) supabase.realtime.setAuth(session.access_token);
             });
@@ -177,7 +194,7 @@ export function BoardTable({
       subscription.unsubscribe();
       if (channel) supabase.removeChannel(channel);
     };
-  }, [boardId, supabase]);
+  }, [boardId, supabase, debugRealtime]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
