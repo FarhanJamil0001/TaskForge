@@ -53,3 +53,10 @@ If Realtime still doesn't work after setting redirect URLs:
    - **Subscribe status** — Should show `SUBSCRIBED`. If `CHANNEL_ERROR`, check Supabase Dashboard → Database → Replication (ensure `tasks` is in the publication).
    - **transport** — WebSocket connection events (connected, heartbeat, errors).
 4. [Supabase Realtime Inspector](https://realtime.supabase.com/inspector/new) — Connect with your project URL and anon key to see live connections and messages.
+
+### WebSocket 1006 / connection failed
+
+If you see `WebSocket connection failed` or `code: 1006`:
+
+- **Trailing newlines in env vars** — The app now trims `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. If you still have issues, re-paste the values in Vercel (Settings → Environment Variables) without any extra spaces or newlines.
+- **Network/firewall** — Some networks block WebSocket connections. Try from a different network or mobile hotspot.

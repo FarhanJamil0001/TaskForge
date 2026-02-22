@@ -6,9 +6,12 @@ const DEBUG_REALTIME = process.env.NEXT_PUBLIC_DEBUG_REALTIME === 'true';
 
 export function createClient() {
   if (client) return client;
+  // Trim to fix WebSocket failures from trailing newlines in Vercel env vars (e.g. %0A in URL)
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? '';
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ?? '';
   client = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    url,
+    key,
     DEBUG_REALTIME
       ? {
           realtime: {
