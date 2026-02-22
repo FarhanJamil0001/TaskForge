@@ -7,16 +7,20 @@ interface OrgMember {
   id: string;
   user_id: string;
   email: string;
+  first_name?: string;
+  last_name?: string;
   role: string;
   created_at: string;
 }
 
 function OwnerAvatar({
   userId,
+  displayName,
   email,
   size = 30,
 }: {
   userId: string | null;
+  displayName?: string | null;
   email?: string | null;
   size?: number;
 }) {
@@ -36,13 +40,22 @@ function OwnerAvatar({
 
   const hue = userId.charCodeAt(0) * 37 + userId.charCodeAt(1) * 17;
   const color = `hsl(${hue % 360}, 60%, 55%)`;
-  const initials = email ? email.slice(0, 2).toUpperCase() : userId.slice(0, 2).toUpperCase();
+  const initials = displayName
+    ? displayName
+        .split(/\s+/)
+        .map((s) => s[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase()
+    : email
+      ? email.slice(0, 2).toUpperCase()
+      : userId.slice(0, 2).toUpperCase();
 
   return (
     <div
       className="flex items-center justify-center rounded-full text-[11px] font-semibold text-white"
       style={{ backgroundColor: color, width: size, height: size }}
-      title={email || userId}
+      title={displayName || email || userId}
     >
       {initials}
     </div>
@@ -66,6 +79,8 @@ export function EditableOwnerCell({
   const [pos, setPos] = useState({ top: 0, left: 0 });
 
   const currentMember = orgMembers.find((m) => m.user_id === assigneeUserId);
+  const displayName = (m: OrgMember) =>
+    [m.first_name, m.last_name].filter(Boolean).join(' ') || m.email;
 
   const updatePosition = useCallback(() => {
     if (!buttonRef.current) return;
@@ -112,6 +127,7 @@ export function EditableOwnerCell({
       >
         <OwnerAvatar
           userId={assigneeUserId}
+          displayName={currentMember ? displayName(currentMember) : null}
           email={currentMember?.email}
         />
       </button>
@@ -143,8 +159,13 @@ export function EditableOwnerCell({
                 }}
                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-txt-primary transition-colors hover:bg-gray-50"
               >
-                <OwnerAvatar userId={m.user_id} email={m.email} size={28} />
-                <span className="truncate">{m.email}</span>
+                <OwnerAvatar
+                  userId={m.user_id}
+                  displayName={displayName(m)}
+                  email={m.email}
+                  size={28}
+                />
+                <span className="truncate">{displayName(m) || m.email}</span>
               </button>
             ))}
           </div>,

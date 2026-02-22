@@ -97,6 +97,8 @@ export function CollaborativeDocumentEditor({
   const [currentUser, setCurrentUser] = useState<{
     id: string;
     email?: string;
+    first_name?: string;
+    last_name?: string;
   } | null>(null);
 
   const yDocRef = useRef<Y.Doc | null>(null);
@@ -146,8 +148,9 @@ export function CollaborativeDocumentEditor({
 
   const userInfo = useMemo(() => {
     if (!currentUser) return { name: 'Anonymous', color: '#6D4C41' };
+    const fullName = [currentUser.first_name, currentUser.last_name].filter(Boolean).join(' ');
     return {
-      name: currentUser.email?.split('@')[0] ?? 'Anonymous',
+      name: fullName || currentUser.email?.split('@')[0] || 'Anonymous',
       color: hashToColor(currentUser.id),
     };
   }, [currentUser]);
@@ -168,9 +171,17 @@ export function CollaborativeDocumentEditor({
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
-      setCurrentUser(
-        user ? { id: user.id, email: user.email ?? undefined } : null,
-      );
+      if (!user) {
+        setCurrentUser(null);
+        return;
+      }
+      const meta = user.user_metadata as { first_name?: string; last_name?: string } | undefined;
+      setCurrentUser({
+        id: user.id,
+        email: user.email ?? undefined,
+        first_name: meta?.first_name,
+        last_name: meta?.last_name,
+      });
     });
   }, [supabase]);
 

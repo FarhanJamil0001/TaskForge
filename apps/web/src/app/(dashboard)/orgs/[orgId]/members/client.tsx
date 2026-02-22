@@ -10,6 +10,8 @@ interface MemberRow {
   id: string;
   user_id: string;
   email: string;
+  first_name?: string;
+  last_name?: string;
   role: OrgRole;
   created_at: string;
 }
@@ -314,11 +316,13 @@ export function MembersClient({
               >
                 <div className="flex items-center gap-3">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-50 text-sm font-semibold text-brand-600">
-                    {(member.email ?? '?')[0]?.toUpperCase()}
+                    {member.first_name && member.last_name
+                      ? `${member.first_name[0]}${member.last_name[0]}`.toUpperCase()
+                      : ([member.first_name, member.last_name].filter(Boolean).join(' ') || member.email ?? '?')[0]?.toUpperCase()}
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-800">
-                      {member.email ?? 'Unknown'}
+                      {[member.first_name, member.last_name].filter(Boolean).join(' ') || member.email ?? 'Unknown'}
                       {isCurrentUser && (
                         <span className="ml-1.5 text-xs text-gray-400">(you)</span>
                       )}
