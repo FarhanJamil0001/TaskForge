@@ -79,14 +79,18 @@ function FormatButton({
 
 const SAVE_DEBOUNCE_MS = 2000;
 
+export type ViewingUser = { name: string; color: string };
+
 export function CollaborativeDocumentEditor({
   doc,
   projectId,
   onDocUpdate,
+  onUsersChange,
 }: {
   doc: ProjectDocument;
   projectId: string;
   onDocUpdate: (doc: ProjectDocument) => void;
+  onUsersChange?: (users: ViewingUser[]) => void;
 }) {
   const supabase = createClient();
   const [title, setTitle] = useState(doc.title);
@@ -196,6 +200,19 @@ export function CollaborativeDocumentEditor({
       CollaborationCaret.configure({
         provider,
         user: userInfo,
+        render: (user: { name?: string; color?: string }) => {
+          const cursor = document.createElement('span');
+          cursor.style.cssText = `
+            display: inline-block;
+            width: 2px;
+            min-height: 1em;
+            background-color: ${user.color ?? '#6D4C41'};
+            margin-left: -1px;
+            vertical-align: text-bottom;
+          `;
+          cursor.title = user.name ?? '';
+          return cursor;
+        },
       }),
     ],
     editorProps: {
@@ -229,6 +246,27 @@ export function CollaborativeDocumentEditor({
   useEffect(() => {
     editor?.commands.updateUser(userInfo);
   }, [editor, userInfo]);
+
+  useEffect(() => {
+    const awareness = provider?.getAwareness();
+    if (!awareness || !onUsersChange) return;
+
+    const sync = () => {
+      const states = awareness.getStates();
+      const users: ViewingUser[] = [];
+      states.forEach((state) => {
+        const u = state?.user;
+        if (u?.name && u?.color) {
+          users.push({ name: u.name, color: u.color });
+        }
+      });
+      onUsersChange(users);
+    };
+
+    sync();
+    awareness.on('update', sync);
+    return () => awareness.off('update', sync);
+  }, [provider, onUsersChange]);
 
   const saveTitle = useCallback(
     async (newTitle: string) => {

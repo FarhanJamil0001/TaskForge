@@ -19,7 +19,10 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { CollaborativeDocumentEditor } from '@/components/collaborative-document-editor';
+import {
+  CollaborativeDocumentEditor,
+  type ViewingUser,
+} from '@/components/collaborative-document-editor';
 
 export type ProjectDocument = {
   id: string;
@@ -304,6 +307,7 @@ export function DocumentHub({
   const [selectedId, setSelectedId] = useState<string | null>(
     initialDocs[0]?.id ?? null,
   );
+  const [viewingUsers, setViewingUsers] = useState<ViewingUser[]>([]);
   const supabase = createClient();
 
   const selectedDoc = docs.find((d) => d.id === selectedId);
@@ -314,6 +318,11 @@ export function DocumentHub({
       setSelectedId(docs[0].id);
     }
   }, [docs, selectedId, selectedDoc]);
+
+  // Clear viewing users when switching documents (new provider will populate)
+  useEffect(() => {
+    setViewingUsers([]);
+  }, [selectedId]);
 
   // Realtime subscription: sync documents when changed by other users/tabs
   useEffect(() => {
@@ -442,6 +451,27 @@ export function DocumentHub({
           onSelect={setSelectedId}
           onReorder={handleReorder}
         />
+        {viewingUsers.length > 0 && (
+          <div className="mt-6 border-t border-monday-border pt-4">
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-txt-secondary">
+              Viewing
+            </span>
+            <div className="space-y-1.5">
+              {viewingUsers.map((u) => (
+                <div
+                  key={`${u.name}-${u.color}`}
+                  className="flex items-center gap-2 text-sm"
+                >
+                  <span
+                    className="h-3 w-0.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: u.color }}
+                  />
+                  <span className="truncate text-txt-primary">{u.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </aside>
 
       {/* Editor */}
@@ -451,6 +481,7 @@ export function DocumentHub({
             doc={selectedDoc}
             projectId={projectId}
             onDocUpdate={handleDocUpdate}
+            onUsersChange={setViewingUsers}
           />
         )}
       </div>
