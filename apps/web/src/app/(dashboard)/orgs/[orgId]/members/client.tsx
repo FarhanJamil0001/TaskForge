@@ -318,7 +318,7 @@ export function MembersClient({
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-50 text-sm font-semibold text-brand-600">
                     {member.first_name && member.last_name
                       ? `${member.first_name[0]}${member.last_name[0]}`.toUpperCase()
-                      : ([member.first_name, member.last_name].filter(Boolean).join(' ') || member.email ?? '?')[0]?.toUpperCase()}
+                      : (([member.first_name, member.last_name].filter(Boolean).join(' ') || member.email) ?? '?')[0]?.toUpperCase()}
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-800">
