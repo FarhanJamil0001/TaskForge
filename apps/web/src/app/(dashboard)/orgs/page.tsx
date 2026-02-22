@@ -21,9 +21,15 @@ export default async function OrgsPage() {
     .eq('status', 'pending')
     .gte('expires_at', new Date().toISOString());
 
-  const myInvites = (pendingInvites ?? []).filter(
-    (i) => i.email.toLowerCase() === userEmail,
-  );
+  const myInvites = (pendingInvites ?? [])
+    .filter((i) => i.email.toLowerCase() === userEmail)
+    .map((i) => {
+      const org = Array.isArray(i.organizations) ? i.organizations[0] : i.organizations;
+      return {
+        ...i,
+        organizations: org ? { id: org.id, name: org.name } : null,
+      };
+    });
 
   return (
     <OrgsClient
