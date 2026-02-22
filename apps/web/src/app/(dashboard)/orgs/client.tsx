@@ -4,14 +4,47 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import type { Organization } from '@taskforge/shared';
+import type { Organization, OrgRole } from '@taskforge/shared';
 
-export function OrgsClient({ orgs, userId }: { orgs: Organization[]; userId: string }) {
+interface PendingInvite {
+  id: string;
+  org_id: string;
+  email: string;
+  role: OrgRole;
+  created_at: string;
+  organizations: { id: string; name: string } | null;
+}
+
+export function OrgsClient({
+  orgs,
+  userId,
+  userEmail,
+  pendingInvites,
+}: {
+  orgs: Organization[];
+  userId: string;
+  userEmail: string;
+  pendingInvites: PendingInvite[];
+}) {
   const [name, setName] = useState('');
   const [creating, setCreating] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [connectCodeOrg, setConnectCodeOrg] = useState<Organization | null>(null);
+
+  const [joinCode, setJoinCode] = useState('');
+  const [joining, setJoining] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const [showJoinForm, setShowJoinForm] = useState(false);
+
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const [acceptError, setAcceptError] = useState<string | null>(null);
+
+  const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
+  const [editName, setEditName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [renameError, setRenameError] = useState<string | null>(null);
+
   const router = useRouter();
   const supabase = createClient();
 
@@ -47,20 +80,99 @@ export function OrgsClient({ orgs, userId }: { orgs: Organization[]; userId: str
     router.refresh();
   }
 
+  function startEditing(org: Organization) {
+    setEditingOrg(org);
+    setEditName(org.name);
+    setRenameError(null);
+  }
+
+  async function saveRename(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingOrg || !editName.trim()) return;
+    setSaving(true);
+    setRenameError(null);
+    const { error: updateError } = await supabase
+      .from('organizations')
+      .update({ name: editName.trim() })
+      .eq('id', editingOrg.id);
+    if (updateError) {
+      setRenameError(updateError.message);
+      setSaving(false);
+      return;
+    }
+    setEditingOrg(null);
+    setSaving(false);
+    router.refresh();
+  }
+
+  async function handleJoinByCode(e: React.FormEvent) {
+    e.preventDefault();
+    if (!joinCode.trim()) return;
+    setJoining(true);
+    setJoinError(null);
+
+    const { error: rpcError } = await supabase.rpc('join_organization_by_code', {
+      p_join_code: joinCode.trim(),
+    });
+
+    if (rpcError) {
+      setJoinError(rpcError.message);
+      setJoining(false);
+      return;
+    }
+
+    setJoinCode('');
+    setShowJoinForm(false);
+    setJoining(false);
+    router.refresh();
+  }
+
+  async function handleAcceptInvite(inviteId: string) {
+    setAcceptingId(inviteId);
+    setAcceptError(null);
+
+    const { error: rpcError } = await supabase.rpc('accept_org_invite', {
+      p_invite_id: inviteId,
+    });
+
+    if (rpcError) {
+      setAcceptError(rpcError.message);
+    }
+
+    setAcceptingId(null);
+    router.refresh();
+  }
+
   return (
     <div className="mx-auto max-w-4xl">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Organizations</h1>
-        <button onClick={() => setShowForm(!showForm)} className="btn-primary">
-          New Organization
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              setShowJoinForm(!showJoinForm);
+              setShowForm(false);
+            }}
+            className="btn-secondary"
+          >
+            Join by Code
+          </button>
+          <button
+            onClick={() => {
+              setShowForm(!showForm);
+              setShowJoinForm(false);
+            }}
+            className="btn-primary"
+          >
+            New Organization
+          </button>
+        </div>
       </div>
 
+      {/* Create org form */}
       {showForm && (
         <form onSubmit={handleCreate} className="card mb-6">
-          {error && (
-            <p className="mb-3 text-sm text-red-500">{error}</p>
-          )}
+          {error && <p className="mb-3 text-sm text-red-500">{error}</p>}
           <div className="flex gap-3">
             <input
               value={name}
@@ -76,6 +188,68 @@ export function OrgsClient({ orgs, userId }: { orgs: Organization[]; userId: str
         </form>
       )}
 
+      {/* Join by code form */}
+      {showJoinForm && (
+        <form onSubmit={handleJoinByCode} className="card mb-6">
+          <p className="mb-3 text-sm text-gray-500">
+            Enter the join code shared by an organization admin.
+          </p>
+          {joinError && <p className="mb-3 text-sm text-red-500">{joinError}</p>}
+          <div className="flex gap-3">
+            <input
+              value={joinCode}
+              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+              placeholder="e.g. A1B2C3D4"
+              className="input flex-1 font-mono uppercase tracking-widest"
+              autoFocus
+              maxLength={12}
+            />
+            <button type="submit" disabled={joining} className="btn-primary">
+              {joining ? 'Joining...' : 'Join'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Pending invites */}
+      {pendingInvites.length > 0 && (
+        <div className="mb-6">
+          <h2 className="mb-3 text-sm font-semibold text-gray-500">
+            Pending Invitations
+          </h2>
+          {acceptError && (
+            <p className="mb-3 text-sm text-red-500">{acceptError}</p>
+          )}
+          <div className="space-y-3">
+            {pendingInvites.map((invite) => (
+              <div
+                key={invite.id}
+                className="card flex items-center justify-between border-brand-500/30 bg-brand-50/30"
+              >
+                <div>
+                  <h3 className="font-semibold text-gray-800">
+                    {invite.organizations?.name ?? 'Unknown Organization'}
+                  </h3>
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    Invited as <span className="font-medium">{invite.role}</span>
+                    {' · '}
+                    {new Date(invite.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleAcceptInvite(invite.id)}
+                  disabled={acceptingId === invite.id}
+                  className="btn-primary"
+                >
+                  {acceptingId === invite.id ? 'Accepting...' : 'Accept'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Connect code banner */}
       {connectCodeOrg && (
         <div className="card mb-6 border-brand-500">
           <div className="flex items-center justify-between">
@@ -90,29 +264,74 @@ export function OrgsClient({ orgs, userId }: { orgs: Organization[]; userId: str
                 Use <code>/connect {'<orgId>'} {'<code>'}</code> in Discord
               </p>
             </div>
-            <button onClick={() => setConnectCodeOrg(null)} className="text-gray-400 hover:text-gray-600">
+            <button
+              onClick={() => setConnectCodeOrg(null)}
+              className="text-gray-400 hover:text-gray-600"
+            >
               ✕
             </button>
           </div>
         </div>
       )}
 
+      {/* Org cards */}
       <div className="grid gap-4 sm:grid-cols-2">
         {orgs.map((org) => (
           <div key={org.id} className="card group">
-            <Link href={`/orgs/${org.id}/projects`} className="block">
-              <h3 className="font-semibold group-hover:text-brand-600">{org.name}</h3>
-              <p className="mt-1 font-mono text-xs text-gray-400">{org.id}</p>
-              <p className="mt-1 text-xs text-gray-400">
-                Created {new Date(org.created_at).toLocaleDateString()}
-              </p>
-            </Link>
-            <div className="mt-3 flex gap-2">
+            {editingOrg?.id === org.id ? (
+              <form onSubmit={saveRename} className="mb-3">
+                {renameError && <p className="mb-2 text-sm text-red-500">{renameError}</p>}
+                <input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="input mb-2"
+                  autoFocus
+                  placeholder="Organization name"
+                />
+                <div className="flex gap-2">
+                  <button type="submit" disabled={saving} className="btn-primary text-xs">
+                    {saving ? 'Saving...' : 'Save'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingOrg(null);
+                      setRenameError(null);
+                    }}
+                    disabled={saving}
+                    className="btn-secondary text-xs"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <Link href={`/orgs/${org.id}/projects`} className="block">
+                <h3 className="font-semibold group-hover:text-brand-600">{org.name}</h3>
+                <p className="mt-1 font-mono text-xs text-gray-400">{org.id}</p>
+                <p className="mt-1 text-xs text-gray-400">
+                  Created {new Date(org.created_at).toLocaleDateString()}
+                </p>
+              </Link>
+            )}
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                onClick={() => startEditing(org)}
+                className="text-xs text-brand-600 hover:underline"
+              >
+                Rename
+              </button>
+              <Link
+                href={`/orgs/${org.id}/members`}
+                className="text-xs text-brand-600 hover:underline"
+              >
+                Members
+              </Link>
               <button
                 onClick={() => setConnectCodeOrg(org)}
                 className="text-xs text-brand-600 hover:underline"
               >
-                Show Connect Code
+                Discord Code
               </button>
               <button
                 onClick={() => regenerateCode(org)}
@@ -125,9 +344,9 @@ export function OrgsClient({ orgs, userId }: { orgs: Organization[]; userId: str
         ))}
       </div>
 
-      {orgs.length === 0 && !showForm && (
+      {orgs.length === 0 && pendingInvites.length === 0 && !showForm && !showJoinForm && (
         <div className="card text-center text-gray-400">
-          No organizations yet. Create one to get started.
+          No organizations yet. Create one or join an existing one to get started.
         </div>
       )}
     </div>

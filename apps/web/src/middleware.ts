@@ -27,10 +27,32 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user && !request.nextUrl.pathname.startsWith('/auth') && !request.nextUrl.pathname.startsWith('/api/bot')) {
+  const publicPaths = ['/auth', '/access-denied', '/api/bot', '/api/check-email'];
+  const isPublicPath = publicPaths.some((p) => request.nextUrl.pathname.startsWith(p));
+
+  if (!user && !isPublicPath) {
     const url = request.nextUrl.clone();
     url.pathname = '/auth';
     return NextResponse.redirect(url);
+  }
+
+  // Email allowlist: if ALLOWED_EMAILS is set, only listed emails can access
+  if (user && !request.nextUrl.pathname.startsWith('/access-denied')) {
+    const raw = process.env.ALLOWED_EMAILS;
+    if (raw?.trim()) {
+      const allowed = raw
+        .split(',')
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean);
+      if (allowed.length > 0) {
+        const userEmail = user.email?.toLowerCase();
+        if (!userEmail || !allowed.includes(userEmail)) {
+          const url = request.nextUrl.clone();
+          url.pathname = '/access-denied';
+          return NextResponse.redirect(url);
+        }
+      }
+    }
   }
 
   return supabaseResponse;

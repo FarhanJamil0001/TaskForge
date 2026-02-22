@@ -23,7 +23,25 @@ export default function AuthPage() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       } else {
-        const { error } = await supabase.auth.signUp({ email, password });
+        // Check allowlist before sign-up
+        const res = await fetch('/api/check-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email.trim() }),
+        });
+        const data = await res.json();
+        if (!data.allowed) {
+          throw new Error(
+            'Your email is not authorized to create an account. Contact your administrator to request access.',
+          );
+        }
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+          },
+        });
         if (error) throw error;
       }
       router.push('/orgs');

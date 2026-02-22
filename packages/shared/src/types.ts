@@ -2,6 +2,7 @@ export type TaskStatus = 'backlog' | 'in_progress' | 'done';
 export type TaskPriority = 'low' | 'medium' | 'high';
 export type OrgRole = 'admin' | 'member';
 export type CreateMode = 'instant';
+export type InviteStatus = 'pending' | 'accepted' | 'revoked';
 
 export interface Organization {
   id: string;
@@ -9,6 +10,7 @@ export interface Organization {
   created_by: string;
   created_at: string;
   connect_code: string | null;
+  join_code: string | null;
 }
 
 export interface OrganizationMember {
@@ -78,4 +80,15 @@ export interface TaskEvent {
   type: string;
   payload: Record<string, unknown>;
   created_at: string;
+}
+
+export interface OrgInvite {
+  id: string;
+  org_id: string;
+  email: string;
+  role: OrgRole;
+  status: InviteStatus;
+  invited_by: string;
+  created_at: string;
+  expires_at: string;
 }

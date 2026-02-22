@@ -185,17 +185,39 @@ export function Sidebar({
       </div>
 
       {/* Bottom */}
-      <div className="border-t border-white/10 p-3">
+      <div className="space-y-0.5 border-t border-white/10 p-3">
+        {orgId && (
+          <Link
+            href={`/orgs/${orgId}/members`}
+            className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-[13px] transition ${
+              pathname.includes('/members')
+                ? 'bg-sidebar-active font-medium text-white'
+                : 'text-gray-400 hover:bg-sidebar-hover hover:text-white'
+            }`}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="stroke-current">
+              <circle cx="6" cy="5" r="2.5" strokeWidth="1.2" />
+              <path d="M1.5 14c0-2.5 2-4.5 4.5-4.5s4.5 2 4.5 4.5" strokeWidth="1.2" strokeLinecap="round" />
+              <circle cx="11.5" cy="5.5" r="1.8" strokeWidth="1.2" />
+              <path d="M11.5 9c1.8 0 3.2 1.3 3.5 3" strokeWidth="1.2" strokeLinecap="round" />
+            </svg>
+            Members
+          </Link>
+        )}
         <Link
           href="/orgs"
-          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-[13px] text-gray-400 transition hover:bg-sidebar-hover hover:text-white"
+          className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-[13px] transition ${
+            pathname === '/orgs'
+              ? 'bg-sidebar-active font-medium text-white'
+              : 'text-gray-400 hover:bg-sidebar-hover hover:text-white'
+          }`}
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="stroke-current">
             <path d="M12.5 9.5a3.5 3.5 0 10-5 3.16V14l2-1 2 1v-1.34a3.5 3.5 0 001-2.16z" strokeWidth="1.2" strokeLinejoin="round" />
             <rect x="2" y="2" width="12" height="3" rx="1" strokeWidth="1.2" />
             <path d="M4 5v3M8 5v1" strokeWidth="1.2" strokeLinecap="round" />
           </svg>
-          Manage Organization
+          Organizations
         </Link>
       </div>
     </aside>
