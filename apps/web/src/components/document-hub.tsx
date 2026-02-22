@@ -1,12 +1,6 @@
 'use client';
 
-import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import Placeholder from '@tiptap/extension-placeholder';
-import Highlight from '@tiptap/extension-highlight';
-import { ListKeymap } from '@tiptap/extension-list';
-import { Extension, InputRule } from '@tiptap/core';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import {
   DndContext,
@@ -25,48 +19,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-
-function FormatButton({
-  onClick,
-  active,
-  title,
-  children,
-}: {
-  onClick: () => void;
-  active: boolean;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={title}
-      className={`rounded p-1.5 transition ${
-        active
-          ? 'bg-brand-500/20 text-brand-600'
-          : 'text-txt-secondary hover:bg-gray-200 hover:text-txt-primary'
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-// Custom extension: /bullet at start of line creates bullet list
-const BulletSlashCommand = Extension.create({
-  name: 'bulletSlashCommand',
-  addInputRules() {
-    return [
-      new InputRule({
-        find: /^\/bullet\s$/,
-        handler: ({ commands }) => {
-          commands.toggleBulletList();
-        },
-      }),
-    ];
-  },
-});
+import { CollaborativeDocumentEditor } from '@/components/collaborative-document-editor';
 
 export type ProjectDocument = {
   id: string;
@@ -77,136 +30,8 @@ export type ProjectDocument = {
   created_at: string;
   updated_at: string;
   position?: number;
+  yjs_state?: ArrayBuffer | string | null;
 };
-
-function DocumentEditor({
-  doc,
-  projectId,
-  onDocUpdate,
-}: {
-  doc: ProjectDocument;
-  projectId: string;
-  onDocUpdate: (doc: ProjectDocument) => void;
-}) {
-  const supabase = createClient();
-  const [title, setTitle] = useState(doc.title);
-
-  const saveContent = useCallback(
-    async (content: Record<string, unknown>) => {
-      const { data, error } = await supabase
-        .from('project_documents')
-        .update({ content, updated_at: new Date().toISOString() })
-        .eq('id', doc.id)
-        .select()
-        .single();
-      if (!error && data) onDocUpdate(data as ProjectDocument);
-    },
-    [doc.id, onDocUpdate],
-  );
-
-  const saveTitle = useCallback(
-    async (newTitle: string) => {
-      const trimmed = newTitle.trim() || 'Untitled';
-      setTitle(trimmed);
-      await supabase
-        .from('project_documents')
-        .update({ title: trimmed })
-        .eq('id', doc.id);
-      onDocUpdate({ ...doc, title: trimmed });
-    },
-    [doc, onDocUpdate],
-  );
-
-  const editor = useEditor({
-    immediatelyRender: false,
-    extensions: [
-      StarterKit.configure({
-        heading: { levels: [1, 2, 3] },
-        bulletList: { keepMarks: true, keepAttributes: false },
-        orderedList: { keepMarks: true, keepAttributes: false },
-      }),
-      ListKeymap,
-      Highlight.configure({
-        multicolor: false,
-        HTMLAttributes: {
-          class: 'bg-yellow-200 rounded px-0.5',
-        },
-      }),
-      Placeholder.configure({
-        placeholder: 'Start writing your project ideas, notes, and plans...',
-      }),
-      BulletSlashCommand,
-    ],
-    content: doc.content,
-    editorProps: {
-      attributes: {
-        class:
-          'min-h-[300px] px-4 py-3 focus:outline-none [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:text-lg [&_h3]:font-medium [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:mb-2',
-      },
-    },
-    onUpdate: ({ editor }) => {
-      const content = editor.getJSON();
-      saveContent(content);
-    },
-  });
-
-  const prevDocIdRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!editor) return;
-    if (prevDocIdRef.current !== doc.id) {
-      prevDocIdRef.current = doc.id;
-      editor.commands.setContent(doc.content ?? {});
-    } else {
-      // Same doc, content changed (e.g. from realtime) — sync editor
-      editor.commands.setContent(doc.content ?? {});
-    }
-  }, [doc.id, doc.content, editor]);
-
-  useEffect(() => {
-    setTitle(doc.title);
-  }, [doc.title]);
-
-  if (!editor) return null;
-
-  return (
-    <div className="rounded-lg border border-monday-border bg-white">
-      <div className="flex flex-wrap items-center gap-1 border-b border-monday-border px-4 py-2">
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onBlur={() => saveTitle(title)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              (e.target as HTMLInputElement).blur();
-            }
-          }}
-          className="min-w-0 flex-1 bg-transparent text-lg font-semibold text-txt-primary focus:outline-none"
-          placeholder="Untitled"
-        />
-        <div className="flex items-center gap-2">
-          <FormatButton
-            onClick={() => editor.chain().focus().toggleBold().run()}
-            active={editor.isActive('bold')}
-            title="Bold (⌘B)"
-          >
-            <strong className="text-sm font-bold">B</strong>
-          </FormatButton>
-          <FormatButton
-            onClick={() => editor.chain().focus().toggleHighlight().run()}
-            active={editor.isActive('highlight')}
-            title="Highlight (⌘⇧H)"
-          >
-            <span className="rounded bg-yellow-200 px-1 text-xs font-medium">
-              H
-            </span>
-          </FormatButton>
-        </div>
-      </div>
-      <EditorContent editor={editor} />
-    </div>
-  );
-}
 
 function NewDocumentButton({
   projectId,
@@ -622,7 +447,7 @@ export function DocumentHub({
       {/* Editor */}
       <div className="min-w-0 flex-1">
         {selectedDoc && (
-          <DocumentEditor
+          <CollaborativeDocumentEditor
             doc={selectedDoc}
             projectId={projectId}
             onDocUpdate={handleDocUpdate}

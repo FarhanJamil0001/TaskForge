@@ -17,6 +17,8 @@
     "@tailwindcss/typography": "^0.5.19",
     "@taskforge/shared": "workspace:*",
     "@tiptap/core": "^3.20.0",
+    "@tiptap/extension-collaboration": "^3.20.0",
+    "@tiptap/extension-collaboration-caret": "3.20.0",
     "@tiptap/extension-highlight": "^3.20.0",
     "@tiptap/extension-list": "^3.20.0",
     "@tiptap/extension-placeholder": "^3.20.0",
@@ -26,6 +28,8 @@
     "next": "^14.2.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "y-protocols": "^1.0.7",
+    "yjs": "^13.6.29",
     "zod": "^3.23.8"
   },
   "devDependencies": {
