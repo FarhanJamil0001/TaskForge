@@ -322,7 +322,7 @@ export function MembersClient({
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-800">
-                      {[member.first_name, member.last_name].filter(Boolean).join(' ') || member.email ?? 'Unknown'}
+                      {([member.first_name, member.last_name].filter(Boolean).join(' ') || member.email) ?? 'Unknown'}
                       {isCurrentUser && (
                         <span className="ml-1.5 text-xs text-gray-400">(you)</span>
                       )}
