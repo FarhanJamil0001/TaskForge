@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { guild_id, channel_id, project_id } = parsed.data;
+  const { guild_id, channel_id, project_id, create_mode } = parsed.data;
   const supabase = createAdminClient();
 
   const { data: guild } = await supabase
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   const { data: link, error } = await supabase
     .from('discord_project_channels')
     .upsert(
-      { guild_id, channel_id, project_id, enabled: true, create_mode: 'instant' },
+      { guild_id, channel_id, project_id, enabled: true, create_mode: create_mode ?? 'instant' },
       { onConflict: 'channel_id' },
     )
     .select()

@@ -1,5 +1,5 @@
 import { Message } from 'discord.js';
-import { createTask } from '../api.js';
+import { createTask, getChannelConfig } from '../api.js';
 import { parsePriority, parseDueDate } from '../parsers.js';
 
 export async function handleAutoCreate(message: Message) {
@@ -11,6 +11,16 @@ export async function handleAutoCreate(message: Message) {
   if (message.content.length < 6) return;
   if (message.content.startsWith('/')) return;
   if (/^!task\b/i.test(message.content.trim())) return;
+
+  try {
+    const config = await getChannelConfig({
+      guild_id: message.guild.id,
+      channel_id: message.channel.id,
+    });
+    if (!config.linked || config.create_mode !== 'instant') return;
+  } catch {
+    return;
+  }
 
   const priority = parsePriority(message.content) ?? 'medium';
   const dueDate = parseDueDate(message.content);

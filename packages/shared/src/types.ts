@@ -1,7 +1,7 @@
 export type TaskStatus = 'backlog' | 'in_progress' | 'done';
 export type TaskPriority = 'low' | 'medium' | 'high';
 export type OrgRole = 'admin' | 'member';
-export type CreateMode = 'instant';
+export type CreateMode = 'instant' | 'reply_only';
 export type InviteStatus = 'pending' | 'accepted' | 'revoked';
 
 export interface Organization {

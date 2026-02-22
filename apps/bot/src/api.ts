@@ -18,6 +18,18 @@ async function botFetch<T>(path: string, body: unknown): Promise<T> {
   return data as T;
 }
 
+async function botGet<T>(path: string): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    headers: { Authorization: `Bearer ${BOT_SECRET}` },
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error?.message ?? data.error ?? `API error ${res.status}`);
+  }
+  return data as T;
+}
+
 export function connectGuild(payload: {
   guild_id: string;
   guild_name: string;
@@ -31,8 +43,25 @@ export function linkChannel(payload: {
   guild_id: string;
   channel_id: string;
   project_id: string;
+  create_mode?: 'instant' | 'reply_only';
 }) {
   return botFetch('/api/bot/link_channel', payload);
+}
+
+export function getChannelConfig(payload: {
+  guild_id: string;
+  channel_id: string;
+}): Promise<{ linked: boolean; create_mode?: 'instant' | 'reply_only' }> {
+  const params = new URLSearchParams(payload);
+  return botGet(`/api/bot/channel_config?${params}`);
+}
+
+export function listTasks(payload: {
+  guild_id: string;
+  channel_id: string;
+  limit?: number;
+}): Promise<{ tasks: Array<{ id: string; title: string; status: string; priority: string; due_date: string | null; created_at: string }> }> {
+  return botFetch('/api/bot/list_tasks', payload);
 }
 
 export function unlinkChannel(payload: {

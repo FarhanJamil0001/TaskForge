@@ -189,10 +189,26 @@ export function DiscordPanel({
                 </div>
                 <div className="ml-7 space-y-2.5">
                   <CopyField label="Project ID" value={projectId} mono />
-                  <CommandBlock
-                    label="Run in the channel you want to link"
-                    command={`/link_channel project_id:${projectId}`}
-                  />
+                  <div>
+                    <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-txt-secondary">
+                      Channel mode
+                    </label>
+                    <p className="mb-2 text-[13px] text-txt-secondary">
+                      <strong>instant</strong> — every message becomes a task (task channels).{' '}
+                      <strong>reply_only</strong> — use <code className="rounded bg-white px-1 text-xs">!task</code> or{' '}
+                      <code className="rounded bg-white px-1 text-xs">/task</code> to create (general channels).
+                    </p>
+                    <CommandBlock
+                      label="Task channel (instant mode)"
+                      command={`/link_channel project_id:${projectId} mode:instant`}
+                    />
+                    <div className="mt-2">
+                      <CommandBlock
+                        label="General channel (reply-only mode)"
+                        command={`/link_channel project_id:${projectId} mode:reply_only`}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -204,16 +220,19 @@ export function DiscordPanel({
                 <ul className="space-y-1.5 text-[13px] text-txt-secondary">
                   <li className="flex items-start gap-2">
                     <span className="mt-0.5 text-status-blue">&#9679;</span>
-                    Messages in the channel automatically become tasks
+                    <strong>Instant mode:</strong> Messages become tasks automatically
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-0.5 text-status-purple">&#9679;</span>
+                    <strong>Reply-only:</strong> Use <code className="rounded bg-white px-1 text-xs">!task Fix the bug</code> or reply with <code className="rounded bg-white px-1 text-xs">!task</code>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="mt-0.5 text-status-green">&#9679;</span>
-                    React with a checkmark to mark a task as done
+                    React with ✅ to mark a task as done
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="mt-0.5 text-status-orange">&#9679;</span>
-                    Use keywords like <code className="rounded bg-white px-1 text-xs">urgent</code>{' '}
-                    or <code className="rounded bg-white px-1 text-xs">due 2026-03-01</code> for priority/dates
+                    Use <code className="rounded bg-white px-1 text-xs">/task list</code> to see recent tasks
                   </li>
                 </ul>
               </div>

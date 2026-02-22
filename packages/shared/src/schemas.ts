@@ -11,10 +11,13 @@ export const connectGuildSchema = z.object({
   connect_code: z.string().min(1),
 });
 
+export const createModeEnum = z.enum(['instant', 'reply_only']);
+
 export const linkChannelSchema = z.object({
   guild_id: z.string().min(1),
   channel_id: z.string().min(1),
   project_id: z.string().uuid(),
+  create_mode: createModeEnum.optional().default('instant'),
 });
 
 export const createTaskFromBotSchema = z.object({
