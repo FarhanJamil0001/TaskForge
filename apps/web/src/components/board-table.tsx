@@ -77,41 +77,71 @@ export function BoardTable({
   }, [orgId, supabase]);
 
   // Real-time subscription: sync tasks instantly when changed elsewhere (e.g. Discord)
+  // Must wait for auth session before subscribing — Realtime uses RLS and requires a valid JWT.
+  // On Vercel/production, the client may subscribe before cookies are read; waiting fixes this.
   useEffect(() => {
-    const channel = supabase
-      .channel(`tasks:board:${boardId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'tasks',
-          filter: `board_id=eq.${boardId}`,
-        },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            const newTask = payload.new as Task;
-            setTasks((prev) => {
-              if (prev.some((t) => t.id === newTask.id)) return prev;
-              return [newTask, ...prev];
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    const setupSubscription = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) return;
+
+      // Ensure Realtime has the current token (helps after token refresh / hydration)
+      supabase.realtime.setAuth(session.access_token);
+
+      channel = supabase
+        .channel(`tasks:board:${boardId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'tasks',
+            filter: `board_id=eq.${boardId}`,
+          },
+          (payload) => {
+            if (payload.eventType === 'INSERT') {
+              const newTask = payload.new as Task;
+              setTasks((prev) => {
+                if (prev.some((t) => t.id === newTask.id)) return prev;
+                return [newTask, ...prev];
+              });
+            } else if (payload.eventType === 'UPDATE') {
+              const updated = payload.new as Task;
+              setTasks((prev) =>
+                prev.map((t) => (t.id === updated.id ? updated : t)),
+              );
+              if (editTaskRef.current?.id === updated.id) setEditTask(updated);
+            } else if (payload.eventType === 'DELETE') {
+              const deleted = payload.old as Task;
+              setTasks((prev) => prev.filter((t) => t.id !== deleted.id));
+              if (editTaskRef.current?.id === deleted.id) setEditTask(null);
+            }
+          },
+        )
+        .subscribe((status) => {
+          if (status === 'CHANNEL_ERROR') {
+            // Token may have expired; refresh and re-subscribe via auth listener
+            supabase.auth.getSession().then(({ data: { session } }) => {
+              if (session) supabase.realtime.setAuth(session.access_token);
             });
-          } else if (payload.eventType === 'UPDATE') {
-            const updated = payload.new as Task;
-            setTasks((prev) =>
-              prev.map((t) => (t.id === updated.id ? updated : t)),
-            );
-            if (editTaskRef.current?.id === updated.id) setEditTask(updated);
-          } else if (payload.eventType === 'DELETE') {
-            const deleted = payload.old as Task;
-            setTasks((prev) => prev.filter((t) => t.id !== deleted.id));
-            if (editTaskRef.current?.id === deleted.id) setEditTask(null);
           }
-        },
-      )
-      .subscribe();
+        });
+    };
+
+    setupSubscription();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (session) supabase.realtime.setAuth(session.access_token);
+      },
+    );
 
     return () => {
-      supabase.removeChannel(channel);
+      subscription.unsubscribe();
+      if (channel) supabase.removeChannel(channel);
     };
   }, [boardId, supabase]);
 

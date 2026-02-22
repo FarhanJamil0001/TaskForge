@@ -54,7 +54,9 @@ function EditableTitleCell({
 }) {
   const [editing, setEditing] = useState(false);
   const [localTitle, setLocalTitle] = useState(task.title);
+  const [inputWidth, setInputWidth] = useState(40);
   const inputRef = useRef<HTMLInputElement>(null);
+  const measureRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
     setLocalTitle(task.title);
@@ -63,6 +65,13 @@ function EditableTitleCell({
   useEffect(() => {
     if (editing) inputRef.current?.focus();
   }, [editing]);
+
+  useEffect(() => {
+    if (editing && measureRef.current) {
+      const w = measureRef.current.getBoundingClientRect().width;
+      setInputWidth(Math.max(w, 40));
+    }
+  }, [editing, localTitle]);
 
   function handleBlur() {
     const trimmed = localTitle.trim();
@@ -75,7 +84,7 @@ function EditableTitleCell({
   }
 
   return (
-    <div className="flex items-center px-2 py-2 font-medium text-txt-primary">
+    <div className="flex min-w-0 items-center px-2 py-2 font-medium text-txt-primary">
       <div className="mr-1.5 shrink-0 rounded p-1 text-gray-300 opacity-0 transition group-hover/row:opacity-100">
         <GripIcon />
       </div>
@@ -94,42 +103,54 @@ function EditableTitleCell({
           <path d="M7 2l3 3-6 6H1V9l6-7z" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
-      {editing ? (
-        <input
-          ref={inputRef}
-          value={localTitle}
-          onChange={(e) => setLocalTitle(e.target.value)}
-          onBlur={handleBlur}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.currentTarget.blur();
-            }
-            if (e.key === 'Escape') {
-              setLocalTitle(task.title);
-              setEditing(false);
-            }
-          }}
-          onClick={(e) => e.stopPropagation()}
-          onPointerDown={(e) => e.stopPropagation()}
-          className="min-w-0 flex-1 truncate bg-transparent focus:outline-none focus:ring-1 focus:ring-brand-500"
-        />
-      ) : (
-        <span
-          className="min-w-0 flex-1 cursor-pointer truncate transition-colors hover:text-brand-500"
-          onClick={(e) => {
-            e.stopPropagation();
-            setEditing(true);
-          }}
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          {task.title}
-        </span>
-      )}
-      {task.discord_message_url && (
-        <span className="ml-2 flex-shrink-0 text-[10px] text-status-purple" title="From Discord">
-          ⟡
-        </span>
-      )}
+      <div className="relative flex min-w-0 flex-1 items-center">
+        {editing ? (
+          <>
+            <span
+              ref={measureRef}
+              className="invisible absolute left-0 top-0 whitespace-pre font-medium"
+              aria-hidden
+            >
+              {localTitle || '\u00A0'}
+            </span>
+            <input
+              ref={inputRef}
+              value={localTitle}
+              onChange={(e) => setLocalTitle(e.target.value)}
+              onBlur={handleBlur}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.currentTarget.blur();
+                }
+                if (e.key === 'Escape') {
+                  setLocalTitle(task.title);
+                  setEditing(false);
+                }
+              }}
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+              style={{ width: inputWidth }}
+              className="min-w-[2ch] shrink-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-brand-500"
+            />
+          </>
+        ) : (
+          <span
+            className="inline-block max-w-full cursor-pointer truncate transition-colors hover:text-brand-500"
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditing(true);
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {task.title}
+          </span>
+        )}
+        {task.discord_message_url && (
+          <span className="ml-2 flex-shrink-0 text-[10px] text-status-purple" title="From Discord">
+            ⟡
+          </span>
+        )}
+      </div>
     </div>
   );
 }
