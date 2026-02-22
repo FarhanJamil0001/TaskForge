@@ -39,7 +39,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
         userId={user.id}
       />
       <div className="flex flex-1 flex-col overflow-hidden">
-        <Topbar email={user.email} />
+        <Topbar
+          email={user.email}
+          firstName={(user.user_metadata as { first_name?: string })?.first_name}
+          lastName={(user.user_metadata as { last_name?: string })?.last_name}
+        />
         <main className="flex-1 overflow-auto bg-surface px-6 py-5">{children}</main>
       </div>
     </div>

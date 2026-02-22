@@ -3,8 +3,17 @@
 import { useRouter } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import Link from 'next/link';
 
-export function Topbar({ email }: { email?: string }) {
+export function Topbar({
+  email,
+  firstName,
+  lastName,
+}: {
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+}) {
   const router = useRouter();
   const supabase = createClient();
   const [showMenu, setShowMenu] = useState(false);
@@ -24,7 +33,9 @@ export function Topbar({ email }: { email?: string }) {
     router.refresh();
   }
 
-  const initial = email?.[0]?.toUpperCase() || 'U';
+  const displayName =
+    [firstName, lastName].filter(Boolean).join(' ') || email?.split('@')[0] || 'User';
+  const initial = (firstName?.[0] ?? lastName?.[0] ?? email?.[0])?.toUpperCase() || 'U';
 
   return (
     <header className="flex h-12 shrink-0 items-center justify-between border-b border-monday-border bg-white px-4">
@@ -56,11 +67,23 @@ export function Topbar({ email }: { email?: string }) {
 
           {showMenu && (
             <div className="absolute right-0 top-full z-50 mt-2 w-[220px] rounded-lg border border-monday-border bg-white py-1 shadow-xl">
-              {email && (
-                <div className="border-b border-monday-border px-4 py-3">
-                  <p className="truncate text-sm font-medium text-txt-primary">{email}</p>
-                </div>
-              )}
+              <div className="border-b border-monday-border px-4 py-3">
+                <p className="truncate text-sm font-medium text-txt-primary">{displayName}</p>
+                {email && (
+                  <p className="truncate text-xs text-txt-secondary">{email}</p>
+                )}
+              </div>
+              <Link
+                href="/profile"
+                onClick={() => setShowMenu(false)}
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-txt-secondary transition hover:bg-gray-50 hover:text-txt-primary"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="stroke-current">
+                  <circle cx="8" cy="5" r="2.5" strokeWidth="1.3" />
+                  <path d="M3 14c0-2.5 2.5-4 5-4s5 1.5 5 4" strokeWidth="1.3" strokeLinecap="round" />
+                </svg>
+                Profile
+              </Link>
               <button
                 onClick={handleSignOut}
                 className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-txt-secondary transition hover:bg-gray-50 hover:text-txt-primary"

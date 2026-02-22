@@ -478,6 +478,7 @@ export function DocumentHub({
       <div className="min-w-0 flex-1">
         {selectedDoc && (
           <CollaborativeDocumentEditor
+            key={selectedDoc.id}
             doc={selectedDoc}
             projectId={projectId}
             onDocUpdate={handleDocUpdate}

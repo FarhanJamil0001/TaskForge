@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -41,6 +43,10 @@ export default function AuthPage() {
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/auth/callback`,
+            data: {
+              first_name: firstName.trim(),
+              last_name: lastName.trim(),
+            },
           },
         });
         if (error) throw error;
@@ -107,6 +113,8 @@ export default function AuthPage() {
                 type="button"
                 onClick={() => {
                   setSignUpSuccess(false);
+                  setFirstName('');
+                  setLastName('');
                   setEmail('');
                   setPassword('');
                 }}
@@ -121,6 +129,38 @@ export default function AuthPage() {
               <p className="rounded-lg bg-blue-50 p-3 text-sm text-blue-800">
                 We&apos;ll send a verification email to your inbox. You&apos;ll need to click the link in that email to activate your account.
               </p>
+            )}
+            {!isLogin && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="firstName" className="mb-1 block text-sm font-medium text-gray-700">
+                    First name
+                  </label>
+                  <input
+                    id="firstName"
+                    type="text"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    required
+                    className="input"
+                    placeholder="Jane"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="lastName" className="mb-1 block text-sm font-medium text-gray-700">
+                    Last name
+                  </label>
+                  <input
+                    id="lastName"
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    required
+                    className="input"
+                    placeholder="Doe"
+                  />
+                </div>
+              </div>
             )}
             <div>
               <label htmlFor="email" className="mb-1 block text-sm font-medium text-gray-700">
