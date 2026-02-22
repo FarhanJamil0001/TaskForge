@@ -1,0 +1,22 @@
+{
+  "name": "@taskforge/bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --env-file=.env --import=tsx --watch src/index.ts",
+    "start": "node --env-file=.env --import=tsx src/index.ts",
+    "deploy-commands": "node --env-file=.env --import=tsx src/deploy-commands.ts",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@taskforge/shared": "workspace:*",
+    "discord.js": "^14.15.3",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsx": "^4.15.0",
+    "typescript": "^5.4.5"
+  }
+}
