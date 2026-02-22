@@ -87,13 +87,13 @@ export function BoardTable({
   }, [boardId, supabase]);
 
   // Polling fallback: Realtime often fails on Vercel (cookie timing, WebSocket limits, etc).
-  // Poll every 15s when tab is visible so updates appear even without Realtime.
+  // Poll every 3s when tab is visible so updates appear even without Realtime.
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const poll = () => {
       if (document.visibilityState === 'visible') refetchTasks();
     };
-    const id = setInterval(poll, 15_000);
+    const id = setInterval(poll, 3_000);
     const onVisible = () => refetchTasks();
     document.addEventListener('visibilitychange', onVisible);
     return () => {
