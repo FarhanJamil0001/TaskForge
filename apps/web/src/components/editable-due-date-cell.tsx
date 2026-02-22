@@ -87,6 +87,7 @@ export function EditableDueDateCell({
           setOpen(!open);
           setLocalValue(dueDate || '');
         }}
+        onPointerDown={(e) => e.stopPropagation()}
         className={`min-h-[34px] w-full rounded px-2 py-1.5 text-center text-[13px] transition-colors hover:bg-gray-100 ${
           dueDate
             ? isOverdue(dueDate)

@@ -92,6 +92,7 @@ export function EditableNotesCell({
           e.stopPropagation();
           setOpen(!open);
         }}
+        onPointerDown={(e) => e.stopPropagation()}
         className="min-h-[34px] w-full cursor-text rounded px-3 py-2 text-left text-[13px] text-txt-secondary transition-colors hover:bg-gray-100 hover:text-txt-primary"
       >
         <span className="line-clamp-2 block truncate">

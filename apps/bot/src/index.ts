@@ -6,6 +6,7 @@ import * as taskCmd from './commands/task.js';
 import { handleAutoCreate } from './listeners/auto-create.js';
 import { handleReplyCreate } from './listeners/reply-create.js';
 import { handleReactionComplete } from './listeners/reaction-complete.js';
+import { handleReactionDelete } from './listeners/reaction-delete.js';
 
 const client = new Client({
   intents: [
@@ -53,6 +54,7 @@ client.on(Events.MessageCreate, async (message) => {
   await handleAutoCreate(message);
 });
 client.on(Events.MessageReactionAdd, handleReactionComplete);
+client.on(Events.MessageReactionAdd, handleReactionDelete);
 
 const token = process.env.DISCORD_BOT_TOKEN;
 if (!token) {

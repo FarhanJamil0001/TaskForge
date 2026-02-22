@@ -10,6 +10,7 @@ export default function AuthPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [signUpSuccess, setSignUpSuccess] = useState(false);
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
@@ -43,6 +44,8 @@ export default function AuthPage() {
           },
         });
         if (error) throw error;
+        setSignUpSuccess(true);
+        return;
       }
       router.push('/orgs');
       router.refresh();
@@ -66,7 +69,10 @@ export default function AuthPage() {
         <div className="card">
           <div className="mb-6 flex rounded-lg bg-gray-100 p-1">
             <button
-              onClick={() => setIsLogin(true)}
+              onClick={() => {
+                setIsLogin(true);
+                setSignUpSuccess(false);
+              }}
               className={`flex-1 rounded-md py-2 text-sm font-medium transition ${
                 isLogin ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
               }`}
@@ -74,7 +80,10 @@ export default function AuthPage() {
               Sign In
             </button>
             <button
-              onClick={() => setIsLogin(false)}
+              onClick={() => {
+                setIsLogin(false);
+                setSignUpSuccess(false);
+              }}
               className={`flex-1 rounded-md py-2 text-sm font-medium transition ${
                 !isLogin ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
               }`}
@@ -83,7 +92,36 @@ export default function AuthPage() {
             </button>
           </div>
 
+          {signUpSuccess ? (
+            <div className="space-y-4">
+              <div className="rounded-lg bg-green-50 p-4 text-sm text-green-800">
+                <p className="font-medium">Check your email</p>
+                <p className="mt-1 text-green-700">
+                  We&apos;ve sent a verification link to <strong>{email}</strong>. Click the link in that email to verify your account and sign in.
+                </p>
+                <p className="mt-2 text-green-600">
+                  Didn&apos;t receive it? Check your spam folder or try signing up again.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSignUpSuccess(false);
+                  setEmail('');
+                  setPassword('');
+                }}
+                className="btn-secondary w-full"
+              >
+                Back to Sign Up
+              </button>
+            </div>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
+            {!isLogin && (
+              <p className="rounded-lg bg-blue-50 p-3 text-sm text-blue-800">
+                We&apos;ll send a verification email to your inbox. You&apos;ll need to click the link in that email to activate your account.
+              </p>
+            )}
             <div>
               <label htmlFor="email" className="mb-1 block text-sm font-medium text-gray-700">
                 Email
@@ -122,6 +160,7 @@ export default function AuthPage() {
               {loading ? 'Loading...' : isLogin ? 'Sign In' : 'Create Account'}
             </button>
           </form>
+          )}
         </div>
       </div>
     </div>

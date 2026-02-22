@@ -107,6 +107,7 @@ export function EditableOwnerCell({
           e.stopPropagation();
           setOpen(!open);
         }}
+        onPointerDown={(e) => e.stopPropagation()}
         className="flex items-center justify-center rounded p-0.5 transition-colors hover:bg-gray-100"
       >
         <OwnerAvatar

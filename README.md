@@ -132,6 +132,8 @@ The web app runs at `http://localhost:3000`.
 | `POST /api/bot/connect_guild`| Link Discord guild to org          |
 | `POST /api/bot/link_channel` | Link channel to project            |
 | `POST /api/bot/create_task`  | Create task from Discord message   |
+| `POST /api/bot/complete_task`| Mark task done (✅ reaction)        |
+| `POST /api/bot/delete_task`  | Delete task (❌ reaction)           |
 
 All bot API routes require `Authorization: Bearer <BOT_SECRET>` header.
 
@@ -145,4 +147,9 @@ All bot API routes require `Authorization: Bearer <BOT_SECRET>` header.
 
 ### Auto-Create Mode
 
-When a channel is linked to a project, every message (6+ characters, not from bots, not starting with `/`) automatically creates a task. The bot reacts with ✅ on success.
+When a channel is linked to a project, every message (6+ characters, not from bots, not starting with `/`) automatically creates a task. The bot reacts with 📋 on success.
+
+### Task Reactions
+
+- **✅** — React with checkmark on a Discord message that has an associated task to mark it complete.
+- **❌** — React with cross mark on a Discord message that has an associated task to delete it.

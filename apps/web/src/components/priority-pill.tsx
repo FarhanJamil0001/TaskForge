@@ -70,6 +70,7 @@ export function PriorityPill({
           e.stopPropagation();
           setOpen(!open);
         }}
+        onPointerDown={(e) => e.stopPropagation()}
         className="flex h-[34px] w-full items-center justify-center rounded-[2px] text-xs font-medium text-white transition-opacity hover:opacity-90"
         style={{ backgroundColor: config.bg }}
       >

@@ -45,15 +45,11 @@ function EditableTitleCell({
   task,
   onTaskClick,
   onTitleChange,
-  listeners,
-  attributes,
   GripIcon,
 }: {
   task: Task;
   onTaskClick: (task: Task) => void;
   onTitleChange: (taskId: string, title: string) => void;
-  listeners?: Record<string, unknown>;
-  attributes?: Record<string, unknown>;
   GripIcon: () => JSX.Element;
 }) {
   const [editing, setEditing] = useState(false);
@@ -80,12 +76,23 @@ function EditableTitleCell({
 
   return (
     <div className="flex items-center px-2 py-2 font-medium text-txt-primary">
-      <button
-        className="mr-1.5 shrink-0 cursor-grab rounded p-1 text-gray-300 opacity-0 transition hover:text-gray-500 active:cursor-grabbing group-hover/row:opacity-100"
-        {...listeners}
-        {...attributes}
-      >
+      <div className="mr-1.5 shrink-0 rounded p-1 text-gray-300 opacity-0 transition group-hover/row:opacity-100">
         <GripIcon />
+      </div>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onTaskClick(task);
+        }}
+        onPointerDown={(e) => e.stopPropagation()}
+        className="mr-1.5 flex-shrink-0 rounded p-0.5 text-gray-400 opacity-0 transition hover:text-brand-500 group-hover/row:opacity-100"
+        title="Open task details"
+        aria-label="Open task details"
+      >
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="stroke-current">
+          <path d="M7 2l3 3-6 6H1V9l6-7z" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </button>
       {editing ? (
         <input
@@ -103,34 +110,20 @@ function EditableTitleCell({
             }
           }}
           onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
           className="min-w-0 flex-1 truncate bg-transparent focus:outline-none focus:ring-1 focus:ring-brand-500"
         />
       ) : (
-        <>
-          <span
-            className="cursor-pointer truncate transition-colors hover:text-brand-500"
-            onClick={(e) => {
-              e.stopPropagation();
-              setEditing(true);
-            }}
-          >
-            {task.title}
-          </span>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onTaskClick(task);
-            }}
-            className="ml-1 flex-shrink-0 rounded p-0.5 text-gray-400 opacity-0 transition hover:text-brand-500 group-hover/row:opacity-100"
-            title="Open task details"
-            aria-label="Open task details"
-          >
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="stroke-current">
-              <path d="M7 2l3 3-6 6H1V9l6-7z" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
-        </>
+        <span
+          className="min-w-0 flex-1 cursor-pointer truncate transition-colors hover:text-brand-500"
+          onClick={(e) => {
+            e.stopPropagation();
+            setEditing(true);
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          {task.title}
+        </span>
       )}
       {task.discord_message_url && (
         <span className="ml-2 flex-shrink-0 text-[10px] text-status-purple" title="From Discord">
@@ -183,17 +176,17 @@ function DraggableTaskRow({
   return (
     <div
       ref={setNodeRef}
-      className={`group/row grid ${COL_GRID} border-b border-monday-border text-sm transition-colors last:border-b-0 hover:bg-[#F5F6F8] ${
+      {...(listeners as object)}
+      {...(attributes as object)}
+      className={`group/row grid cursor-grab ${COL_GRID} border-b border-monday-border text-sm transition-colors last:border-b-0 hover:bg-[#F5F6F8] active:cursor-grabbing ${
         isDragging ? 'opacity-30' : ''
       }`}
     >
-      {/* Task title with drag handle */}
+      {/* Task title */}
       <EditableTitleCell
         task={task}
         onTaskClick={onTaskClick}
         onTitleChange={onTitleChange}
-        listeners={listeners as unknown as Record<string, unknown>}
-        attributes={attributes as unknown as Record<string, unknown>}
         GripIcon={GripIcon}
       />
 

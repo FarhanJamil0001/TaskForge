@@ -75,6 +75,12 @@ export const completeTaskFromBotSchema = z.object({
   channel_id: z.string().min(1),
 });
 
+export const deleteTaskFromBotSchema = z.object({
+  discord_message_id: z.string().min(1),
+  guild_id: z.string().min(1),
+  channel_id: z.string().min(1),
+});
+
 export const unlinkChannelSchema = z.object({
   guild_id: z.string().min(1),
   channel_id: z.string().min(1),
@@ -83,6 +89,7 @@ export const unlinkChannelSchema = z.object({
 });
 
 export type CompleteTaskFromBotPayload = z.infer<typeof completeTaskFromBotSchema>;
+export type DeleteTaskFromBotPayload = z.infer<typeof deleteTaskFromBotSchema>;
 export type ConnectGuildPayload = z.infer<typeof connectGuildSchema>;
 export type LinkChannelPayload = z.infer<typeof linkChannelSchema>;
 export type UnlinkChannelPayload = z.infer<typeof unlinkChannelSchema>;

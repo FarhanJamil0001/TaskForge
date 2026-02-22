@@ -94,6 +94,14 @@ export function completeTask(payload: {
   return botFetch('/api/bot/complete_task', payload);
 }
 
+export function deleteTask(payload: {
+  discord_message_id: string;
+  guild_id: string;
+  channel_id: string;
+}) {
+  return botFetch('/api/bot/delete_task', payload);
+}
+
 export function createTask(payload: {
   guild_id: string;
   channel_id: string;
