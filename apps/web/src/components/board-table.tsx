@@ -76,21 +76,55 @@ export function BoardTable({
       .then(({ data }) => setOrgMembers(data ?? []));
   }, [orgId, supabase]);
 
+  // Refetch tasks from DB (polling fallback when Realtime fails, e.g. on Vercel)
+  const refetchTasks = useCallback(async () => {
+    const { data } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('board_id', boardId)
+      .order('created_at', { ascending: false });
+    if (data) setTasks(data);
+  }, [boardId, supabase]);
+
+  // Polling fallback: Realtime often fails on Vercel (cookie timing, WebSocket limits, etc).
+  // Poll every 15s when tab is visible so updates appear even without Realtime.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const poll = () => {
+      if (document.visibilityState === 'visible') refetchTasks();
+    };
+    const id = setInterval(poll, 15_000);
+    const onVisible = () => refetchTasks();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [refetchTasks]);
+
   // Real-time subscription: sync tasks instantly when changed elsewhere (e.g. Discord)
   // Must wait for auth session before subscribing — Realtime uses RLS and requires a valid JWT.
-  // On Vercel/production, the client may subscribe before cookies are read; waiting fixes this.
+  // On Vercel/production, cookies may not be ready on first paint; we retry with backoff.
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null;
+    let cancelled = false;
 
-    const setupSubscription = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) return;
+    const setupSubscription = async (attempt = 0) => {
+      if (cancelled) return;
+      // getUser() validates server-side; getSession() can be stale on hydration
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!user || !token) {
+        if (attempt < 3) {
+          setTimeout(() => setupSubscription(attempt + 1), [500, 1500, 3000][attempt]);
+        }
+        return;
+      }
 
-      // Ensure Realtime has the current token (helps after token refresh / hydration)
-      supabase.realtime.setAuth(session.access_token);
+      supabase.realtime.setAuth(token);
 
+      if (cancelled) return;
       channel = supabase
         .channel(`tasks:board:${boardId}`)
         .on(
@@ -123,7 +157,6 @@ export function BoardTable({
         )
         .subscribe((status) => {
           if (status === 'CHANNEL_ERROR') {
-            // Token may have expired; refresh and re-subscribe via auth listener
             supabase.auth.getSession().then(({ data: { session } }) => {
               if (session) supabase.realtime.setAuth(session.access_token);
             });
@@ -140,6 +173,7 @@ export function BoardTable({
     );
 
     return () => {
+      cancelled = true;
       subscription.unsubscribe();
       if (channel) supabase.removeChannel(channel);
     };

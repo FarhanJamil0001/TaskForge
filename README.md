@@ -40,6 +40,7 @@ pnpm install
 1. Go to [supabase.com](https://supabase.com) and create a new project.
 2. In the SQL Editor, run the migration file at `supabase/migrations/001_initial_schema.sql`.
 3. Copy your project URL, anon key, and service role key.
+4. **Vercel deploy**: Add redirect URLs in Authentication → URL Configuration. See [docs/supabase-redirect-urls.md](docs/supabase-redirect-urls.md) or run `./scripts/print-supabase-redirect-urls.sh`.
 
 ### 3. Configure environment variables
 
