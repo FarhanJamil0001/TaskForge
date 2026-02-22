@@ -1,5 +1,5 @@
 import { createServerSupabase } from '@/lib/supabase/server';
-import { BoardTable } from '@/components/board-table';
+import { BoardViewClient } from './board-view-client';
 
 export default async function BoardPage({
   params,
@@ -14,7 +14,9 @@ export default async function BoardPage({
 
   const { data: board } = await supabase
     .from('boards')
-    .select('*, projects!inner(id, name, org_id, organizations!inner(id, name))')
+    .select(
+      '*, projects!inner(id, name, org_id, organizations!inner(id, name, connect_code))',
+    )
     .eq('id', boardId)
     .single();
 
@@ -28,38 +30,33 @@ export default async function BoardPage({
     return <div className="text-center text-txt-secondary">Board not found</div>;
   }
 
+  const project = board.projects as {
+    id: string;
+    name: string;
+    org_id: string;
+    organizations: { id: string; name: string; connect_code: string | null };
+  };
+
+  const { data: docs } = await supabase
+    .from('project_documents')
+    .select('*')
+    .eq('project_id', project.id)
+    .order('position', { ascending: true });
+
   return (
-    <div>
-      {/* Breadcrumb */}
-      <div className="mb-1 flex items-center gap-1.5 text-[13px] text-txt-secondary">
-        <span>{board.projects.organizations.name}</span>
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="stroke-current opacity-50">
-          <path d="M4.5 2.5l3 3.5-3 3.5" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        <span>{board.projects.name}</span>
-      </div>
-
-      {/* Board header */}
-      <div className="mb-4">
-        <h1 className="text-[22px] font-bold text-txt-primary">{board.name}</h1>
-        {/* View tabs */}
-        <div className="mt-3 flex items-center gap-0.5 border-b border-monday-border">
-          <button className="relative px-4 py-2 text-sm font-medium text-brand-500 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:rounded-full after:bg-brand-500 after:content-['']">
-            Main Table
-          </button>
-          <button className="px-4 py-2 text-sm text-txt-secondary transition hover:text-txt-primary">
-            + Add view
-          </button>
-        </div>
-      </div>
-
-      {/* Board table */}
-      <BoardTable
-        boardId={boardId}
-        orgId={board.projects.org_id}
-        initialTasks={tasks ?? []}
-        userId={user!.id}
-      />
-    </div>
+    <BoardViewClient
+      boardId={boardId}
+      boardName={board.name}
+      projectId={project.id}
+      projectName={project.name}
+      orgId={project.org_id}
+      orgName={project.organizations.name}
+      connectCode={project.organizations.connect_code}
+      initialTasks={tasks ?? []}
+      userId={user!.id}
+      initialDocs={
+        (docs ?? []) as import('@/components/document-hub').ProjectDocument[]
+      }
+    />
   );
 }

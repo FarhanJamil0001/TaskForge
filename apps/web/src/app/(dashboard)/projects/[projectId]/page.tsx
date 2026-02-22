@@ -1,6 +1,5 @@
 import { createServerSupabase } from '@/lib/supabase/server';
-import { BoardTable } from '@/components/board-table';
-import { DiscordPanel } from '@/components/discord-panel';
+import { ProjectViewClient } from './project-view-client';
 
 export default async function ProjectBoardPage({
   params,
@@ -68,38 +67,23 @@ export default async function ProjectBoardPage({
     .eq('board_id', board.id)
     .order('created_at', { ascending: false });
 
-  return (
-    <div>
-      {/* Board header */}
-      <div className="mb-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-[22px] font-bold text-txt-primary">{project.name}</h1>
-          <DiscordPanel
-            orgId={org.id}
-            orgName={org.name}
-            connectCode={org.connect_code}
-            projectId={project.id}
-            projectName={project.name}
-          />
-        </div>
-        {/* View tabs */}
-        <div className="mt-3 flex items-center gap-0.5 border-b border-monday-border">
-          <button className="relative px-4 py-2 text-sm font-medium text-brand-500 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:rounded-full after:bg-brand-500 after:content-['']">
-            Main Table
-          </button>
-          <button className="px-4 py-2 text-sm text-txt-secondary transition hover:text-txt-primary">
-            + Add view
-          </button>
-        </div>
-      </div>
+  const { data: docs } = await supabase
+    .from('project_documents')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('position', { ascending: true });
 
-      {/* Board table */}
-      <BoardTable
-        boardId={board.id}
-        orgId={org.id}
-        initialTasks={tasks ?? []}
-        userId={user!.id}
-      />
-    </div>
+  return (
+    <ProjectViewClient
+      projectId={project.id}
+      projectName={project.name}
+      orgId={org.id}
+      orgName={org.name}
+      connectCode={org.connect_code}
+      boardId={board.id}
+      initialTasks={tasks ?? []}
+      userId={user!.id}
+      initialDocs={(docs ?? []) as import('@/components/document-hub').ProjectDocument[]}
+    />
   );
 }
