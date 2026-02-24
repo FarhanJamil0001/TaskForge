@@ -77,8 +77,7 @@ function FormatButton({
   );
 }
 
-const SAVE_DEBOUNCE_MS = 600;
-const SAVE_INTERVAL_MS = 4000;
+// Save on every change; no debounce so nothing is ever lost.
 
 export type ViewingUser = { name: string; color: string };
 
@@ -172,10 +171,8 @@ export function CollaborativeDocumentEditor({
     }
   }, [doc.id]);
 
-  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const saveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastSavedRef = useRef<number>(0);
-  const hasUnsavedChangesRef = useRef(false);
+  const saveInProgressRef = useRef(false);
+  const saveAgainAfterRef = useRef(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -242,72 +239,40 @@ export function CollaborativeDocumentEditor({
     },
   });
 
-  // Save after any document change (local or remote) so we never lose data.
-  // Previously we only saved on provider 'message' (remote only), so local edits were not persisted until unmount.
+  // Save on every document change (local or remote). No debounce — nothing is ever lost.
+  // If a save is already in progress, we save again when it finishes so we never skip state.
   useEffect(() => {
     if (!yDocRef.current) return;
 
-    const scheduleSave = () => {
-      hasUnsavedChangesRef.current = true;
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-      saveTimeoutRef.current = setTimeout(() => {
-        saveTimeoutRef.current = null;
-        saveYjsState().then(() => {
-          hasUnsavedChangesRef.current = false;
-          lastSavedRef.current = Date.now();
-        });
-      }, SAVE_DEBOUNCE_MS);
+    const runSave = () => {
+      if (saveInProgressRef.current) {
+        saveAgainAfterRef.current = true;
+        return;
+      }
+      saveInProgressRef.current = true;
+      saveAgainAfterRef.current = false;
+      saveYjsState().then(() => {
+        saveInProgressRef.current = false;
+        if (saveAgainAfterRef.current) {
+          saveAgainAfterRef.current = false;
+          runSave();
+        }
+      }).catch(() => {
+        saveInProgressRef.current = false;
+        if (saveAgainAfterRef.current) {
+          saveAgainAfterRef.current = false;
+          runSave();
+        }
+      });
     };
 
     const yDoc = yDocRef.current;
-    const onDocUpdate = () => scheduleSave();
+    const onDocUpdate = () => runSave();
 
     yDoc.on('update', onDocUpdate);
 
     return () => {
       yDoc.off('update', onDocUpdate);
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-        saveTimeoutRef.current = null;
-      }
-    };
-  }, [saveYjsState]);
-
-  // Flush save when tab becomes hidden (e.g. switch tab, close) so we don't lose data.
-  useEffect(() => {
-    const onVisibilityChange = () => {
-      if (document.visibilityState === 'hidden' && hasUnsavedChangesRef.current) {
-        if (saveTimeoutRef.current) {
-          clearTimeout(saveTimeoutRef.current);
-          saveTimeoutRef.current = null;
-        }
-        saveYjsState().then(() => {
-          hasUnsavedChangesRef.current = false;
-        });
-      }
-    };
-
-    document.addEventListener('visibilitychange', onVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
-  }, [saveYjsState]);
-
-  // Periodic save when there are unsaved changes (safety net for multi-user / long sessions).
-  useEffect(() => {
-    const id = setInterval(() => {
-      if (!hasUnsavedChangesRef.current) return;
-      if (Date.now() - lastSavedRef.current < SAVE_INTERVAL_MS) return;
-      saveYjsState().then(() => {
-        hasUnsavedChangesRef.current = false;
-        lastSavedRef.current = Date.now();
-      });
-    }, SAVE_INTERVAL_MS);
-
-    saveIntervalRef.current = id;
-    return () => {
-      if (saveIntervalRef.current) {
-        clearInterval(saveIntervalRef.current);
-        saveIntervalRef.current = null;
-      }
     };
   }, [saveYjsState]);
 
@@ -355,14 +320,6 @@ export function CollaborativeDocumentEditor({
 
   useEffect(() => {
     return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-        saveTimeoutRef.current = null;
-      }
-      if (saveIntervalRef.current) {
-        clearInterval(saveIntervalRef.current);
-        saveIntervalRef.current = null;
-      }
       saveYjsState();
       providerRef.current?.destroy();
       yDocRef.current?.destroy();
