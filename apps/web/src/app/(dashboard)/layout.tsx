@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { Sidebar } from '@/components/sidebar';
 import { Topbar } from '@/components/topbar';
+import { MobileBottomNav } from '@/components/mobile-bottom-nav';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createServerSupabase();
@@ -30,6 +31,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
         .order('created_at', { ascending: true })
     : { data: [] };
 
+  const projectList = (projects ?? []).map((p) => ({ id: p.id, name: p.name }));
+
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar
@@ -44,7 +47,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
           firstName={(user.user_metadata as { first_name?: string })?.first_name}
           lastName={(user.user_metadata as { last_name?: string })?.last_name}
         />
-        <main className="flex-1 overflow-auto bg-surface px-6 py-5">{children}</main>
+        <main className="flex-1 overflow-auto bg-surface px-4 py-4 pb-24 md:px-6 md:py-5 md:pb-5">{children}</main>
+        <MobileBottomNav orgId={orgId} projects={projectList} />
       </div>
     </div>
   );

@@ -35,34 +35,36 @@ export function ProjectViewClient({
     <div>
       {/* Header */}
       <div className="mb-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-[22px] font-bold text-txt-primary">{projectName}</h1>
-          <DiscordPanel
-            orgId={orgId}
-            orgName={orgName}
-            connectCode={connectCode}
-            projectId={projectId}
-            projectName={projectName}
-          />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-xl font-bold text-txt-primary sm:text-[22px]">{projectName}</h1>
+          <div className="shrink-0">
+            <DiscordPanel
+              orgId={orgId}
+              orgName={orgName}
+              connectCode={connectCode}
+              projectId={projectId}
+              projectName={projectName}
+            />
+          </div>
         </div>
         {/* View tabs */}
-        <div className="mt-3 flex items-center gap-0.5 border-b border-monday-border">
+        <div className="mt-3 flex items-center gap-0.5 border-b border-monday-border overflow-x-auto">
           <button
             onClick={() => setTab('table')}
-            className={`relative px-4 py-2 text-sm font-medium transition ${
+            className={`relative shrink-0 px-4 py-2.5 text-sm font-medium transition touch-manipulation ${
               tab === 'table'
                 ? 'text-brand-500 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:rounded-full after:bg-brand-500 after:content-[""]'
-                : 'text-txt-secondary hover:text-txt-primary'
+                : 'text-txt-secondary hover:text-txt-primary active:text-txt-primary'
             }`}
           >
             Main Table
           </button>
           <button
             onClick={() => setTab('documents')}
-            className={`relative px-4 py-2 text-sm font-medium transition ${
+            className={`relative shrink-0 px-4 py-2.5 text-sm font-medium transition touch-manipulation ${
               tab === 'documents'
                 ? 'text-brand-500 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:rounded-full after:bg-brand-500 after:content-[""]'
-                : 'text-txt-secondary hover:text-txt-primary'
+                : 'text-txt-secondary hover:text-txt-primary active:text-txt-primary'
             }`}
           >
             Documents

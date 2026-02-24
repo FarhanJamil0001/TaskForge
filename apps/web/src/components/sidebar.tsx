@@ -71,7 +71,7 @@ export function Sidebar({
   const activeProjectId = pathname.match(/^\/projects\/([^/]+)/)?.[1] ?? null;
 
   return (
-    <aside className="flex w-[250px] shrink-0 flex-col bg-sidebar">
+    <aside className="hidden w-[250px] shrink-0 flex-col bg-sidebar md:flex">
       {/* Logo */}
       <div className="flex h-14 items-center gap-2.5 border-b border-white/10 px-4">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500 text-sm font-bold text-white">
@@ -99,6 +99,20 @@ export function Sidebar({
             <path d="M3 7.5L9 2.5L15 7.5V15H11V11H7V15H3V7.5Z" strokeWidth="1.3" strokeLinejoin="round" />
           </svg>
           Home
+        </Link>
+        <Link
+          href="/my-tasks"
+          className={`flex items-center gap-2.5 rounded-md px-3 py-[7px] text-[13px] font-medium transition ${
+            pathname === '/my-tasks'
+              ? 'bg-sidebar-active text-white'
+              : 'text-gray-300 hover:bg-sidebar-hover hover:text-white'
+          }`}
+        >
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="stroke-current">
+            <path d="M2 4h14v10H2V4z" strokeWidth="1.3" strokeLinejoin="round" />
+            <path d="M6 2v4M12 2v4M2 8h14" strokeWidth="1.3" strokeLinecap="round" />
+          </svg>
+          My Tasks
         </Link>
       </nav>
 

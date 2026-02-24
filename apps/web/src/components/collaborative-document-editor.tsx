@@ -77,7 +77,8 @@ function FormatButton({
   );
 }
 
-const SAVE_DEBOUNCE_MS = 2000;
+const SAVE_DEBOUNCE_MS = 600;
+const SAVE_INTERVAL_MS = 4000;
 
 export type ViewingUser = { name: string; color: string };
 
@@ -160,14 +161,21 @@ export function CollaborativeDocumentEditor({
     const state = Y.encodeStateAsUpdate(yDocRef.current);
     if (state.length <= 2) return;
 
-    await fetch(`/api/documents/${doc.id}/yjs-state`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ state: Array.from(new Uint8Array(state)) }),
-    });
+    try {
+      await fetch(`/api/documents/${doc.id}/yjs-state`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ state: Array.from(new Uint8Array(state)) }),
+      });
+    } catch (e) {
+      console.warn('Document save failed:', e);
+    }
   }, [doc.id]);
 
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastSavedRef = useRef<number>(0);
+  const hasUnsavedChangesRef = useRef(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -229,30 +237,79 @@ export function CollaborativeDocumentEditor({
     editorProps: {
       attributes: {
         class:
-          'min-h-[300px] px-4 py-3 focus:outline-none [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:text-lg [&_h3]:medium [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:mb-2',
+          'min-h-[300px] px-4 py-3 focus:outline-none [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:text-lg [&_h3]:medium [&_ul]:list-disc [&_ul]:pl-6 [&_ul_ul]:list-[circle] [&_ol]:list-decimal [&_ol]:pl-6 [&_ol_ol]:list-[lower-alpha] [&_p]:mb-2',
       },
     },
   });
 
+  // Save after any document change (local or remote) so we never lose data.
+  // Previously we only saved on provider 'message' (remote only), so local edits were not persisted until unmount.
   useEffect(() => {
-    if (!editor || !provider) return;
+    if (!yDocRef.current) return;
 
-    const onUpdate = () => {
+    const scheduleSave = () => {
+      hasUnsavedChangesRef.current = true;
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = setTimeout(() => {
         saveTimeoutRef.current = null;
-        saveYjsState();
+        saveYjsState().then(() => {
+          hasUnsavedChangesRef.current = false;
+          lastSavedRef.current = Date.now();
+        });
       }, SAVE_DEBOUNCE_MS);
     };
 
-    provider.on('message', onUpdate);
+    const yDoc = yDocRef.current;
+    const onDocUpdate = () => scheduleSave();
+
+    yDoc.on('update', onDocUpdate);
+
     return () => {
-      provider.off('message', onUpdate);
+      yDoc.off('update', onDocUpdate);
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
       }
     };
-  }, [editor, provider, saveYjsState]);
+  }, [saveYjsState]);
+
+  // Flush save when tab becomes hidden (e.g. switch tab, close) so we don't lose data.
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && hasUnsavedChangesRef.current) {
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+          saveTimeoutRef.current = null;
+        }
+        saveYjsState().then(() => {
+          hasUnsavedChangesRef.current = false;
+        });
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [saveYjsState]);
+
+  // Periodic save when there are unsaved changes (safety net for multi-user / long sessions).
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (!hasUnsavedChangesRef.current) return;
+      if (Date.now() - lastSavedRef.current < SAVE_INTERVAL_MS) return;
+      saveYjsState().then(() => {
+        hasUnsavedChangesRef.current = false;
+        lastSavedRef.current = Date.now();
+      });
+    }, SAVE_INTERVAL_MS);
+
+    saveIntervalRef.current = id;
+    return () => {
+      if (saveIntervalRef.current) {
+        clearInterval(saveIntervalRef.current);
+        saveIntervalRef.current = null;
+      }
+    };
+  }, [saveYjsState]);
 
   useEffect(() => {
     editor?.commands.updateUser(userInfo);
@@ -298,6 +355,14 @@ export function CollaborativeDocumentEditor({
 
   useEffect(() => {
     return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+      if (saveIntervalRef.current) {
+        clearInterval(saveIntervalRef.current);
+        saveIntervalRef.current = null;
+      }
       saveYjsState();
       providerRef.current?.destroy();
       yDocRef.current?.destroy();

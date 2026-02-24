@@ -38,12 +38,14 @@ interface GroupSectionProps {
   onDescriptionChange: (taskId: string, description: string | null) => void;
   onTitleChange: (taskId: string, title: string) => void;
   onAddTask: (title: string, status: TaskStatus) => void;
+  onAddTaskDone?: () => void;
+  forceAdding?: boolean;
   orgMembers: OrgMember[];
 }
 
 const COL_GRID = 'grid-cols-[minmax(280px,2.5fr)_90px_140px_120px_110px_minmax(120px,1.5fr)]';
 
-function EditableTitleCell({
+export function EditableTitleCell({
   task,
   onTaskClick,
   onTitleChange,
@@ -157,7 +159,7 @@ function EditableTitleCell({
   );
 }
 
-function GripIcon() {
+export function GripIcon() {
   return (
     <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
       <circle cx="4" cy="2" r="1" />
@@ -254,6 +256,8 @@ function DraggableTaskRow({
   );
 }
 
+const QUICK_ADD_GROUPS: TaskStatus[] = ['backlog', 'in_progress'];
+
 export function GroupSection({
   group,
   tasks,
@@ -267,6 +271,8 @@ export function GroupSection({
   onDescriptionChange,
   onTitleChange,
   onAddTask,
+  onAddTaskDone,
+  forceAdding,
   orgMembers,
 }: GroupSectionProps) {
   const [adding, setAdding] = useState(false);
@@ -275,42 +281,73 @@ export function GroupSection({
 
   const { setNodeRef, isOver } = useDroppable({ id: group.status });
 
-  useEffect(() => {
-    if (adding) inputRef.current?.focus();
-  }, [adding]);
+  const isAdding = adding || !!forceAdding;
+  const showQuickAdd = QUICK_ADD_GROUPS.includes(group.status);
 
-  function handleAdd() {
+  useEffect(() => {
+    if (forceAdding) setAdding(true);
+  }, [forceAdding]);
+
+  useEffect(() => {
+    if (isAdding) {
+      const id = requestAnimationFrame(() => {
+        inputRef.current?.focus();
+      });
+      return () => cancelAnimationFrame(id);
+    }
+  }, [isAdding]);
+
+  function handleBlur() {
     const trimmed = newTitle.trim();
     if (trimmed) {
       onAddTask(trimmed, group.status);
-      setNewTitle('');
     }
+    setNewTitle('');
+    setAdding(false);
+    onAddTaskDone?.();
   }
 
   return (
     <div ref={setNodeRef} className="mb-5">
       {/* Group header */}
-      <button
-        onClick={onToggleCollapse}
-        className="group mb-1 flex items-center gap-2 rounded px-1 py-1 transition hover:bg-gray-100"
-      >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 16 16"
-          fill="none"
-          className={`transition-transform ${collapsed ? '' : 'rotate-90'}`}
-          style={{ color: group.color }}
+      <div className="group mb-1 flex items-center gap-2 rounded px-1 py-1">
+        <button
+          onClick={onToggleCollapse}
+          className="flex items-center gap-2 transition hover:bg-gray-100"
         >
-          <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        <span className="text-[15px] font-bold" style={{ color: group.color }}>
-          {group.label}
-        </span>
-        <span className="text-xs text-txt-secondary">
-          {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
-        </span>
-      </button>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            className={`transition-transform ${collapsed ? '' : 'rotate-90'}`}
+            style={{ color: group.color }}
+          >
+            <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span className="text-[15px] font-bold" style={{ color: group.color }}>
+            {group.label}
+          </span>
+          <span className="text-xs text-txt-secondary">
+            {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
+          </span>
+        </button>
+        {showQuickAdd && !collapsed && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setAdding(true);
+            }}
+            className="ml-1 flex h-6 w-6 items-center justify-center rounded text-txt-secondary transition hover:bg-gray-200 hover:text-brand-500"
+            title={`Add task to ${group.label}`}
+            aria-label={`Add task to ${group.label}`}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="stroke-current">
+              <path d="M7 1v12M1 7h12" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </button>
+        )}
+      </div>
 
       {!collapsed && (
         <div
@@ -334,6 +371,43 @@ export function GroupSection({
               <div className="border-l border-monday-border px-2 py-2.5 text-center">Notes</div>
             </div>
 
+            {/* Add task row - at top so new tasks appear where you're typing */}
+            <div
+              className={`grid ${COL_GRID} border-b border-monday-border text-sm`}
+            >
+              <div className="px-4 py-2">
+                {isAdding ? (
+                  <input
+                    ref={inputRef}
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.currentTarget.blur();
+                      }
+                      if (e.key === 'Escape') {
+                        setNewTitle('');
+                        setAdding(false);
+                        onAddTaskDone?.();
+                        inputRef.current?.blur();
+                      }
+                    }}
+                    onBlur={handleBlur}
+                    placeholder="Task title..."
+                    className="w-full bg-transparent text-sm text-txt-primary placeholder:text-txt-secondary focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  />
+                ) : (
+                  <button
+                    onClick={() => setAdding(true)}
+                    className="text-txt-secondary transition-colors hover:text-brand-500"
+                  >
+                    + Add task
+                  </button>
+                )}
+              </div>
+              <div className="col-span-5" />
+            </div>
+
             {/* Task rows */}
             {tasks.map((task) => (
               <DraggableTaskRow
@@ -349,43 +423,6 @@ export function GroupSection({
                 orgMembers={orgMembers}
               />
             ))}
-
-            {/* Add task row */}
-            <div
-              className={`grid ${COL_GRID} text-sm`}
-            >
-              <div className="px-4 py-2">
-                {adding ? (
-                  <input
-                    ref={inputRef}
-                    value={newTitle}
-                    onChange={(e) => setNewTitle(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleAdd();
-                      if (e.key === 'Escape') {
-                        setAdding(false);
-                        setNewTitle('');
-                      }
-                    }}
-                    onBlur={() => {
-                      handleAdd();
-                      setAdding(false);
-                      setNewTitle('');
-                    }}
-                    placeholder="+ Add task"
-                    className="w-full bg-transparent text-sm text-txt-primary placeholder:text-txt-secondary focus:outline-none"
-                  />
-                ) : (
-                  <button
-                    onClick={() => setAdding(true)}
-                    className="text-txt-secondary transition-colors hover:text-brand-500"
-                  >
-                    + Add task
-                  </button>
-                )}
-              </div>
-              <div className="col-span-5" />
-            </div>
           </div>
         </div>
       )}

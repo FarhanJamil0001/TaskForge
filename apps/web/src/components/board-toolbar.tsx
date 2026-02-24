@@ -7,7 +7,7 @@ export type SortField = 'title' | 'priority' | 'due_date' | 'created_at';
 export type SortDir = 'asc' | 'desc';
 
 interface BoardToolbarProps {
-  onNewTask: () => void;
+  onNewTask?: () => void;
   search: string;
   onSearchChange: (val: string) => void;
   sortField: SortField;
@@ -84,18 +84,20 @@ export function BoardToolbar({
   }, [showSearch]);
 
   return (
-    <div className="flex items-center gap-2 pb-4">
-      <button
-        onClick={onNewTask}
-        className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-4 py-[7px] text-sm font-medium text-white transition hover:bg-brand-600"
-      >
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="stroke-white">
-          <path d="M7 1v12M1 7h12" strokeWidth="2" strokeLinecap="round" />
-        </svg>
-        New Task
-      </button>
+    <div className="flex flex-wrap items-center gap-2 pb-4">
+      {onNewTask && (
+        <button
+          onClick={onNewTask}
+          className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-4 py-[7px] text-sm font-medium text-white transition hover:bg-brand-600 active:bg-brand-600"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="stroke-white">
+            <path d="M7 1v12M1 7h12" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+          New Task
+        </button>
+      )}
 
-      <div className="ml-auto flex items-center gap-1">
+      <div className={`flex items-center gap-1 ${onNewTask ? 'ml-auto' : ''}`}>
         {/* Search */}
         <div className="relative flex items-center">
           {showSearch && (

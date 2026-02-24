@@ -1,6 +1,22 @@
 const BASE_URL = process.env.BOT_API_BASE_URL || 'http://localhost:3000';
 const BOT_SECRET = process.env.BOT_SECRET || '';
 
+async function parseJsonOrThrow(res: Response, path: string): Promise<unknown> {
+  const text = await res.text();
+  if (!text.trim()) {
+    throw new Error(
+      `API returned empty response (${res.status}) from ${path}. Check BOT_API_BASE_URL and network.`,
+    );
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(
+      `API returned invalid JSON (${res.status}) from ${path}: ${text.slice(0, 100)}...`,
+    );
+  }
+}
+
 async function botFetch<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     method: 'POST',
@@ -11,9 +27,16 @@ async function botFetch<T>(path: string, body: unknown): Promise<T> {
     body: JSON.stringify(body),
   });
 
-  const data = await res.json();
+  const data = (await parseJsonOrThrow(res, path)) as Record<string, unknown>;
   if (!res.ok) {
-    throw new Error(data.error?.message ?? data.error ?? `API error ${res.status}`);
+    const err = data?.error;
+    const msg =
+      typeof err === 'object' && err && 'message' in err
+        ? String((err as { message?: string }).message)
+        : typeof err === 'string'
+          ? err
+          : `API error ${res.status}`;
+    throw new Error(msg);
   }
   return data as T;
 }
@@ -23,9 +46,16 @@ async function botGet<T>(path: string): Promise<T> {
     headers: { Authorization: `Bearer ${BOT_SECRET}` },
   });
 
-  const data = await res.json();
+  const data = (await parseJsonOrThrow(res, path)) as Record<string, unknown>;
   if (!res.ok) {
-    throw new Error(data.error?.message ?? data.error ?? `API error ${res.status}`);
+    const err = data?.error;
+    const msg =
+      typeof err === 'object' && err && 'message' in err
+        ? String((err as { message?: string }).message)
+        : typeof err === 'string'
+          ? err
+          : `API error ${res.status}`;
+    throw new Error(msg);
   }
   return data as T;
 }

@@ -115,7 +115,7 @@ function SortableDocumentItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition ${
+      className={`flex min-w-[140px] items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition md:min-w-0 ${
         isDragging ? 'opacity-50' : ''
       } ${
         isSelected
@@ -199,7 +199,7 @@ function DocumentList({
         items={docs.map((d) => d.id)}
         strategy={verticalListSortingStrategy}
       >
-        <nav className="space-y-0.5">
+        <nav className="flex gap-2 overflow-x-auto pb-1 md:flex-col md:gap-0.5 md:overflow-visible md:pb-0 [&>*]:shrink-0 md:[&>*]:shrink">
           {docs.map((doc) => (
             <SortableDocumentItem
               key={doc.id}
@@ -432,10 +432,10 @@ export function DocumentHub({
   }
 
   return (
-    <div className="flex gap-6">
-      {/* Sidebar */}
-      <aside className="w-56 shrink-0">
-        <div className="mb-3 flex items-center justify-between">
+    <div className="flex flex-col gap-4 md:flex-row md:gap-6">
+      {/* Sidebar - horizontal scroll on mobile, vertical on desktop */}
+      <aside className="shrink-0 md:w-56">
+        <div className="mb-3 flex items-center justify-between gap-2">
           <span className="text-xs font-semibold uppercase tracking-wider text-txt-secondary">
             Documents
           </span>

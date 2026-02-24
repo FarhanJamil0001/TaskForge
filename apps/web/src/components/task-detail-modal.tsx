@@ -35,7 +35,7 @@ export function TaskDetailModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="w-full max-w-lg rounded-xl border border-monday-border bg-white shadow-2xl"
+        className="mx-4 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl border border-monday-border bg-white shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -70,7 +70,7 @@ export function TaskDetailModal({
               placeholder="Add more details..."
             />
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <label className="mb-1.5 block text-sm font-medium text-txt-primary">Status</label>
               <select

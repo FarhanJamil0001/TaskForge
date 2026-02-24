@@ -15,7 +15,7 @@ import { createClient } from '@/lib/supabase/client';
 import type { Task, TaskStatus, TaskPriority } from '@taskforge/shared';
 import { BoardToolbar, type SortField, type SortDir } from './board-toolbar';
 import { GroupSection, type GroupConfig } from './group-section';
-import { CreateTaskModal } from './create-task-modal';
+import { MobileTaskList } from './mobile-task-list';
 import { TaskDetailModal } from './task-detail-modal';
 
 const GROUPS: GroupConfig[] = [
@@ -64,7 +64,7 @@ export function BoardTable({
   const [filterPriority, setFilterPriority] = useState<TaskPriority | 'all'>('all');
   const [collapsedGroups, setCollapsedGroups] = useState<Set<TaskStatus>>(new Set());
   const [editTask, setEditTask] = useState<Task | null>(null);
-  const [showCreate, setShowCreate] = useState(false);
+  const [addingGroup, setAddingGroup] = useState<TaskStatus | null>(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const supabase = createClient();
   const editTaskRef = useRef(editTask);
@@ -281,6 +281,14 @@ export function BoardTable({
     });
   }, []);
 
+  const expandGroup = useCallback((status: TaskStatus) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      next.delete(status);
+      return next;
+    });
+  }, []);
+
   const handleStatusChange = useCallback(
     async (taskId: string, status: TaskStatus) => {
       setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status } : t)));
@@ -358,36 +366,6 @@ export function BoardTable({
     [boardId, userId, supabase],
   );
 
-  const handleCreateTask = useCallback(
-    async (data: {
-      title: string;
-      description?: string;
-      priority: string;
-      due_date?: string;
-      status: string;
-    }) => {
-      const { data: newTask } = await supabase
-        .from('tasks')
-        .insert({
-          board_id: boardId,
-          title: data.title,
-          description: data.description || null,
-          priority: data.priority,
-          due_date: data.due_date || null,
-          status: data.status,
-          created_by: userId,
-        })
-        .select()
-        .single();
-
-      if (newTask) {
-        setTasks((prev) => [newTask, ...prev]);
-      }
-      setShowCreate(false);
-    },
-    [boardId, userId, supabase],
-  );
-
   const handleUpdateTask = useCallback(
     async (taskId: string, updates: Partial<Task>) => {
       setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, ...updates } : t)));
@@ -405,10 +383,15 @@ export function BoardTable({
     [supabase],
   );
 
+  const handleNewTask = useCallback(() => {
+    expandGroup('backlog');
+    setAddingGroup('backlog');
+  }, [expandGroup]);
+
   return (
     <div>
       <BoardToolbar
-        onNewTask={() => setShowCreate(true)}
+        onNewTask={handleNewTask}
         search={search}
         onSearchChange={setSearch}
         sortField={sortField}
@@ -421,13 +404,25 @@ export function BoardTable({
         onFilterChange={setFilterPriority}
       />
 
+      {/* Mobile: card-based task list */}
+      <MobileTaskList
+        tasks={filteredAndSortedTasks}
+        orgMembers={orgMembers}
+        onTaskClick={setEditTask}
+        onStatusChange={handleStatusChange}
+        onPriorityChange={handlePriorityChange}
+        onAssigneeChange={handleAssigneeChange}
+        onAddTask={handleInlineAdd}
+      />
+
+      {/* Desktop: table with drag-and-drop */}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="min-w-[800px]">
+        <div className="hidden min-w-[800px] md:block">
           {GROUPS.map((group) => (
             <GroupSection
               key={group.status}
@@ -443,6 +438,8 @@ export function BoardTable({
               onDescriptionChange={handleDescriptionChange}
               onTitleChange={handleTitleChange}
               onAddTask={handleInlineAdd}
+              onAddTaskDone={() => setAddingGroup(null)}
+              forceAdding={addingGroup === group.status}
               orgMembers={orgMembers}
             />
           ))}
@@ -470,14 +467,6 @@ export function BoardTable({
           ) : null}
         </DragOverlay>
       </DndContext>
-
-      {showCreate && (
-        <CreateTaskModal
-          defaultStatus="backlog"
-          onClose={() => setShowCreate(false)}
-          onCreate={handleCreateTask}
-        />
-      )}
 
       {editTask && (
         <TaskDetailModal
