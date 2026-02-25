@@ -1,12 +1,147 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  horizontalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { BoardTable } from '@/components/board-table';
 import { DocumentHub, type ProjectDocument } from '@/components/document-hub';
 import { DiscordPanel } from '@/components/discord-panel';
 import type { Task } from '@taskforge/shared';
 import { createClient } from '@/lib/supabase/client';
 import type { ProjectView } from './page';
+
+function SortableTab({
+  view,
+  isSelected,
+  editingId,
+  editingName,
+  viewsLength,
+  onSelect,
+  onStartRename,
+  onEditingNameChange,
+  onFinishRename,
+  onCancelRename,
+  onDelete,
+}: {
+  view: ProjectView;
+  isSelected: boolean;
+  editingId: string | null;
+  editingName: string;
+  viewsLength: number;
+  onSelect: () => void;
+  onStartRename: () => void;
+  onEditingNameChange: (v: string) => void;
+  onFinishRename: () => void;
+  onCancelRename: () => void;
+  onDelete: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: view.id, disabled: editingId === view.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`group/tab flex shrink-0 items-center gap-1 ${isDragging ? 'opacity-50' : ''}`}
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className="cursor-grab touch-none rounded p-1 text-txt-secondary hover:bg-gray-100 active:cursor-grabbing"
+        title="Drag to reorder"
+        aria-label="Drag to reorder tab"
+      >
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+          <circle cx="4" cy="2" r="1" />
+          <circle cx="8" cy="2" r="1" />
+          <circle cx="4" cy="6" r="1" />
+          <circle cx="8" cy="6" r="1" />
+          <circle cx="4" cy="10" r="1" />
+          <circle cx="8" cy="10" r="1" />
+        </svg>
+      </div>
+      {editingId === view.id ? (
+        <input
+          value={editingName}
+          onChange={(e) => onEditingNameChange(e.target.value)}
+          onBlur={onFinishRename}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+            if (e.key === 'Escape') onCancelRename();
+          }}
+          autoFocus
+          className="min-w-[80px] rounded border border-brand-500 bg-white px-2 py-1.5 text-sm text-txt-primary focus:outline-none focus:ring-1 focus:ring-brand-500"
+        />
+      ) : (
+        <button
+          onClick={onSelect}
+          className={`relative shrink-0 px-4 py-2.5 text-sm font-medium transition touch-manipulation ${
+            isSelected
+              ? 'text-brand-500 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:rounded-full after:bg-brand-500 after:content-[""]'
+              : 'text-txt-secondary hover:text-txt-primary active:text-txt-primary'
+          }`}
+        >
+          {view.name}
+        </button>
+      )}
+      <div className="flex items-center gap-0.5 opacity-0 transition group-hover/tab:opacity-100">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onStartRename();
+          }}
+          className="rounded p-1 text-txt-secondary hover:bg-gray-100 hover:text-txt-primary"
+          title="Rename"
+          aria-label="Rename tab"
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="stroke-current">
+            <path d="M7 2l3 3-6 6H1V9l6-7z" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        {viewsLength > 1 && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            className="rounded p-1 text-txt-secondary hover:bg-red-50 hover:text-red-600"
+            title="Delete"
+            aria-label="Delete tab"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="stroke-current">
+              <path d="M2 3h8M4 3V2a1 1 0 011-1h2a1 1 0 011 1v1M2 3v7a1 1 0 001 1h6a1 1 0 001-1V3" strokeWidth="1.2" strokeLinecap="round" />
+              <path d="M5 5v4M7 5v4" strokeWidth="1.2" strokeLinecap="round" />
+            </svg>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function ProjectViewClient({
   projectId,
@@ -108,7 +243,8 @@ export function ProjectViewClient({
   );
 
   const addView = useCallback(async () => {
-    if (addingView) return;
+    if (addingViewRef.current) return;
+    addingViewRef.current = true;
     setAddingView(true);
     try {
       const boardCount = views.filter((v) => v.type === 'board').length;
@@ -183,6 +319,35 @@ export function ProjectViewClient({
     setEditingName('');
   }, [editingId, editingName, updateView]);
 
+  const handleReorder = useCallback(
+    async (reordered: ProjectView[]) => {
+      setViews(reordered);
+      await Promise.all(
+        reordered.map((v, i) =>
+          supabase.from('project_views').update({ position: i }).eq('id', v.id),
+        ),
+      );
+    },
+    [supabase],
+  );
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+      const oldIndex = views.findIndex((v) => v.id === active.id);
+      const newIndex = views.findIndex((v) => v.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return;
+      const reordered = arrayMove(views, oldIndex, newIndex);
+      handleReorder(reordered);
+    },
+    [views, handleReorder],
+  );
+
   return (
     <div>
       {/* Header */}
@@ -203,73 +368,37 @@ export function ProjectViewClient({
         </div>
 
         {/* Editable tabs */}
-        <div className="mt-3 flex items-center gap-0.5 border-b border-monday-border overflow-x-auto">
-          {views.map((view) => (
-            <div
-              key={view.id}
-              className="group/tab flex shrink-0 items-center gap-1"
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="mt-3 flex items-center gap-0.5 border-b border-monday-border overflow-x-auto">
+            <SortableContext
+              items={views.map((v) => v.id)}
+              strategy={horizontalListSortingStrategy}
             >
-              {editingId === view.id ? (
-                <input
-                  value={editingName}
-                  onChange={(e) => setEditingName(e.target.value)}
-                  onBlur={finishRename}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                    if (e.key === 'Escape') {
-                      setEditingId(null);
-                      setEditingName('');
-                    }
+              {views.map((view) => (
+                <SortableTab
+                  key={view.id}
+                  view={view}
+                  isSelected={selectedViewId === view.id}
+                  editingId={editingId}
+                  editingName={editingName}
+                  viewsLength={views.length}
+                  onSelect={() => setSelectedViewId(view.id)}
+                  onStartRename={() => startRename(view)}
+                  onEditingNameChange={setEditingName}
+                  onFinishRename={finishRename}
+                  onCancelRename={() => {
+                    setEditingId(null);
+                    setEditingName('');
                   }}
-                  autoFocus
-                  className="min-w-[80px] rounded border border-brand-500 bg-white px-2 py-1.5 text-sm text-txt-primary focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  onDelete={() => deleteView(view.id)}
                 />
-              ) : (
-                <button
-                  onClick={() => setSelectedViewId(view.id)}
-                  className={`relative shrink-0 px-4 py-2.5 text-sm font-medium transition touch-manipulation ${
-                    selectedViewId === view.id
-                      ? 'text-brand-500 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:rounded-full after:bg-brand-500 after:content-[""]'
-                      : 'text-txt-secondary hover:text-txt-primary active:text-txt-primary'
-                  }`}
-                >
-                  {view.name}
-                </button>
-              )}
-              <div className="flex items-center gap-0.5 opacity-0 transition group-hover/tab:opacity-100">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    startRename(view);
-                  }}
-                  className="rounded p-1 text-txt-secondary hover:bg-gray-100 hover:text-txt-primary"
-                  title="Rename"
-                  aria-label="Rename tab"
-                >
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="stroke-current">
-                    <path d="M7 2l3 3-6 6H1V9l6-7z" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>
-                {views.length > 1 && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteView(view.id);
-                    }}
-                    className="rounded p-1 text-txt-secondary hover:bg-red-50 hover:text-red-600"
-                    title="Delete"
-                    aria-label="Delete tab"
-                  >
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="stroke-current">
-                      <path d="M2 3h8M4 3V2a1 1 0 011-1h2a1 1 0 011 1v1M2 3v7a1 1 0 001 1h6a1 1 0 001-1V3" strokeWidth="1.2" strokeLinecap="round" />
-                      <path d="M5 5v4M7 5v4" strokeWidth="1.2" strokeLinecap="round" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-          <button
+              ))}
+            </SortableContext>
+            <button
             onClick={addView}
             disabled={addingView}
             className="shrink-0 rounded p-2 text-txt-secondary hover:bg-gray-100 hover:text-brand-500 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -280,7 +409,8 @@ export function ProjectViewClient({
               <path d="M8 3v10M3 8h10" strokeWidth="2" strokeLinecap="round" />
             </svg>
           </button>
-        </div>
+          </div>
+        </DndContext>
       </div>
 
       {/* Content: render all tabs but only show selected for instant switching */}
