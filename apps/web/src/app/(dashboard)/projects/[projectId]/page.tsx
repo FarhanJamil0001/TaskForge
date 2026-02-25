@@ -1,5 +1,16 @@
 import { createServerSupabase } from '@/lib/supabase/server';
 import { ProjectViewClient } from './project-view-client';
+import type { ProjectDocument } from '@/components/document-hub';
+import type { Task } from '@taskforge/shared';
+
+export type ProjectView = {
+  id: string;
+  project_id: string;
+  type: 'board' | 'documents';
+  name: string;
+  board_id: string | null;
+  position: number;
+};
 
 export default async function ProjectBoardPage({
   params,
@@ -32,14 +43,14 @@ export default async function ProjectBoardPage({
     connect_code: string | null;
   };
 
-  let { data: board } = await supabase
+  let { data: defaultBoard } = await supabase
     .from('boards')
     .select('*')
     .eq('project_id', projectId)
     .eq('is_default', true)
     .single();
 
-  if (!board) {
+  if (!defaultBoard) {
     const { data: newBoard } = await supabase
       .from('boards')
       .insert({
@@ -50,10 +61,10 @@ export default async function ProjectBoardPage({
       })
       .select()
       .single();
-    board = newBoard;
+    defaultBoard = newBoard;
   }
 
-  if (!board) {
+  if (!defaultBoard) {
     return (
       <div className="flex h-full items-center justify-center">
         <p className="text-txt-secondary">Could not load board</p>
@@ -61,11 +72,55 @@ export default async function ProjectBoardPage({
     );
   }
 
-  const { data: tasks } = await supabase
-    .from('tasks')
+  let { data: views } = await supabase
+    .from('project_views')
     .select('*')
-    .eq('board_id', board.id)
-    .order('created_at', { ascending: false });
+    .eq('project_id', projectId)
+    .order('position', { ascending: true });
+
+  if (!views || views.length === 0) {
+    await supabase.from('project_views').insert([
+      {
+        project_id: projectId,
+        type: 'board',
+        name: 'Main Table',
+        board_id: defaultBoard.id,
+        position: 0,
+      },
+      {
+        project_id: projectId,
+        type: 'documents',
+        name: 'Documents',
+        board_id: null,
+        position: 1,
+      },
+    ]);
+    const { data: v } = await supabase
+      .from('project_views')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('position', { ascending: true });
+    views = v ?? [];
+  }
+
+  const boardIds = (views as ProjectView[])
+    .filter((v) => v.type === 'board' && v.board_id)
+    .map((v) => v.board_id as string);
+
+  let tasksByBoardId: Record<string, Task[]> = {};
+  if (boardIds.length > 0) {
+    const { data: tasksByBoard } = await supabase
+      .from('tasks')
+      .select('*')
+      .in('board_id', boardIds)
+      .order('created_at', { ascending: false });
+
+    for (const boardId of boardIds) {
+      tasksByBoardId[boardId] = (tasksByBoard ?? []).filter(
+        (t) => t.board_id === boardId,
+      );
+    }
+  }
 
   const { data: docs } = await supabase
     .from('project_documents')
@@ -80,10 +135,10 @@ export default async function ProjectBoardPage({
       orgId={org.id}
       orgName={org.name}
       connectCode={org.connect_code}
-      boardId={board.id}
-      initialTasks={tasks ?? []}
+      initialViews={(views ?? []) as ProjectView[]}
+      tasksByBoardId={tasksByBoardId}
       userId={user!.id}
-      initialDocs={(docs ?? []) as import('@/components/document-hub').ProjectDocument[]}
+      initialDocs={(docs ?? []) as ProjectDocument[]}
     />
   );
 }
