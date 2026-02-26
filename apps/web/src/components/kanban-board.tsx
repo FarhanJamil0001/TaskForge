@@ -21,6 +21,7 @@ import { TaskDetailModal } from './task-detail-modal';
 const COLUMNS: { id: TaskStatus; label: string; color: string }[] = [
   { id: 'backlog', label: 'Backlog', color: 'bg-gray-100' },
   { id: 'in_progress', label: 'In Progress', color: 'bg-blue-50' },
+  { id: 'needs_testing', label: 'Needs Testing', color: 'bg-purple-50' },
   { id: 'done', label: 'Done', color: 'bg-green-50' },
 ];
 

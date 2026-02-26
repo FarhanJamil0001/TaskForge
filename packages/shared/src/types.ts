@@ -1,4 +1,4 @@
-export type TaskStatus = 'backlog' | 'in_progress' | 'done';
+export type TaskStatus = 'backlog' | 'in_progress' | 'done' | 'needs_testing';
 export type TaskPriority = 'low' | 'medium' | 'high';
 export type OrgRole = 'admin' | 'member';
 export type CreateMode = 'instant' | 'reply_only';
@@ -41,6 +41,7 @@ export interface Board {
 export interface Task {
   id: string;
   board_id: string;
+  group_id: string | null;
   title: string;
   description: string | null;
   status: TaskStatus;
@@ -54,6 +55,15 @@ export interface Task {
   discord_message_id: string | null;
   discord_author_id: string | null;
   discord_message_url: string | null;
+}
+
+export interface BoardGroup {
+  id: string;
+  board_id: string;
+  name: string;
+  color: string;
+  position: number;
+  created_at: string;
 }
 
 export interface DiscordGuild {

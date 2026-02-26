@@ -7,6 +7,7 @@ import type { TaskStatus } from '@taskforge/shared';
 const STATUS_CONFIG: Record<TaskStatus, { label: string; bg: string }> = {
   backlog: { label: 'Not Started', bg: '#C4C4C4' },
   in_progress: { label: 'Working on it', bg: '#FDAB3D' },
+  needs_testing: { label: 'Needs Testing', bg: '#A25DDC' },
   done: { label: 'Done', bg: '#00C875' },
 };
 

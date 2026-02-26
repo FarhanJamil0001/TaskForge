@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const taskStatusEnum = z.enum(['backlog', 'in_progress', 'done']);
+export const taskStatusEnum = z.enum(['backlog', 'in_progress', 'done', 'needs_testing']);
 export const taskPriorityEnum = z.enum(['low', 'medium', 'high']);
 export const orgRoleEnum = z.enum(['admin', 'member']);
 
@@ -58,6 +58,7 @@ export const createTaskSchema = z.object({
   priority: taskPriorityEnum.optional().default('medium'),
   assignee_user_id: z.string().uuid().nullable().optional(),
   due_date: z.string().nullable().optional(),
+  group_id: z.string().uuid().nullable().optional(),
 });
 
 export const updateTaskSchema = z.object({
@@ -67,6 +68,7 @@ export const updateTaskSchema = z.object({
   priority: taskPriorityEnum.optional(),
   assignee_user_id: z.string().uuid().nullable().optional(),
   due_date: z.string().nullable().optional(),
+  group_id: z.string().uuid().nullable().optional(),
 });
 
 export const completeTaskFromBotSchema = z.object({

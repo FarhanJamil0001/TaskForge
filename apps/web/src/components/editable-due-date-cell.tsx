@@ -10,6 +10,10 @@ function formatDate(dateStr: string): string {
   return `${month} ${day}`;
 }
 
+function toYMD(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
 function isOverdue(dateStr: string | null): boolean {
   if (!dateStr) return false;
   return new Date(dateStr) < new Date();
@@ -27,8 +31,8 @@ export function EditableDueDateCell({
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [pos, setPos] = useState({ top: 0, left: 0 });
-  const [localValue, setLocalValue] = useState(dueDate || '');
 
   const updatePosition = useCallback(() => {
     if (!buttonRef.current) return;
@@ -39,14 +43,28 @@ export function EditableDueDateCell({
   }, []);
 
   useEffect(() => {
-    setLocalValue(dueDate || '');
-  }, [dueDate]);
-
-  useEffect(() => {
     if (!open) return;
     updatePosition();
 
+    // Auto-open the native date picker so user can pick in one click
+    const el = inputRef.current;
+    if (el?.showPicker) {
+      const t = requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          try {
+            el.showPicker();
+          } catch {
+            // showPicker() can throw in some contexts (e.g. not user-initiated)
+          }
+        });
+      });
+      return () => cancelAnimationFrame(t);
+    }
+  }, [open, updatePosition]);
+
+  useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
+      if (!open) return;
       if (
         popoverRef.current &&
         !popoverRef.current.contains(e.target as Node) &&
@@ -57,25 +75,30 @@ export function EditableDueDateCell({
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
-    window.addEventListener('scroll', () => setOpen(false), true);
-    window.addEventListener('resize', () => setOpen(false));
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('scroll', () => setOpen(false), true);
-      window.removeEventListener('resize', () => setOpen(false));
-    };
-  }, [open, updatePosition]);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open]);
 
-  function handleSave() {
-    const trimmed = localValue.trim();
-    onChange(trimmed || null);
+  useEffect(() => {
+    if (!open) return;
+    const onScroll = () => setOpen(false);
+    const onResize = () => setOpen(false);
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [open]);
+
+  function handleDateSelect(dateStr: string | null) {
+    onChange(dateStr);
     setOpen(false);
   }
 
-  function handleClear() {
-    onChange(null);
-    setLocalValue('');
-    setOpen(false);
+  function setQuickDate(offsetDays: number) {
+    const d = new Date();
+    d.setDate(d.getDate() + offsetDays);
+    handleDateSelect(toYMD(d));
   }
 
   return (
@@ -85,7 +108,6 @@ export function EditableDueDateCell({
         onClick={(e) => {
           e.stopPropagation();
           setOpen(!open);
-          setLocalValue(dueDate || '');
         }}
         onPointerDown={(e) => e.stopPropagation()}
         className={`min-h-[34px] w-full rounded px-2 py-1.5 text-center text-[13px] transition-colors hover:bg-gray-100 ${
@@ -105,30 +127,49 @@ export function EditableDueDateCell({
             className="fixed z-[9999] rounded-lg border border-monday-border bg-white p-4 shadow-xl"
             style={{ top: pos.top, left: pos.left, width: POPOVER_W }}
           >
-            <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-txt-secondary">
-              Due date
-            </div>
-            <input
-              type="date"
-              value={localValue}
-              onChange={(e) => setLocalValue(e.target.value)}
-              className="mb-3 w-full rounded border border-monday-border px-3 py-2 text-sm text-txt-primary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-              autoFocus
-            />
-            <div className="flex justify-between gap-2">
+            {/* Quick one-click options */}
+            <div className="mb-3 flex flex-wrap gap-1.5">
               <button
-                onClick={handleClear}
-                className="rounded px-3 py-1.5 text-sm text-txt-secondary transition-colors hover:bg-gray-100 hover:text-txt-primary"
+                type="button"
+                onClick={() => setQuickDate(0)}
+                className="rounded bg-gray-100 px-2.5 py-1.5 text-xs font-medium text-txt-primary transition-colors hover:bg-gray-200"
+              >
+                Today
+              </button>
+              <button
+                type="button"
+                onClick={() => setQuickDate(1)}
+                className="rounded bg-gray-100 px-2.5 py-1.5 text-xs font-medium text-txt-primary transition-colors hover:bg-gray-200"
+              >
+                Tomorrow
+              </button>
+              <button
+                type="button"
+                onClick={() => setQuickDate(7)}
+                className="rounded bg-gray-100 px-2.5 py-1.5 text-xs font-medium text-txt-primary transition-colors hover:bg-gray-200"
+              >
+                Next week
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDateSelect(null)}
+                className="rounded px-2.5 py-1.5 text-xs text-txt-secondary transition-colors hover:bg-gray-100 hover:text-txt-primary"
               >
                 Clear
               </button>
-              <button
-                onClick={handleSave}
-                className="rounded bg-brand-500 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-brand-600"
-              >
-                Save
-              </button>
             </div>
+            {/* Date input: picker opens automatically; selecting a date saves and closes */}
+            <input
+              ref={inputRef}
+              type="date"
+              defaultValue={dueDate || ''}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v) handleDateSelect(v);
+              }}
+              className="w-full rounded border border-monday-border px-3 py-2 text-sm text-txt-primary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              autoFocus
+            />
           </div>,
           document.body,
         )}

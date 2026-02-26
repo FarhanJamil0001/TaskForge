@@ -87,6 +87,7 @@ export function CreateTaskModal({
               >
                 <option value="backlog">Not Started</option>
                 <option value="in_progress">Working on it</option>
+                <option value="needs_testing">Needs Testing</option>
                 <option value="done">Done</option>
               </select>
             </div>

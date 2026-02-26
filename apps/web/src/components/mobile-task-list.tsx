@@ -9,6 +9,7 @@ import { EditableOwnerCell } from './editable-owner-cell';
 const GROUPS: { status: TaskStatus; label: string; color: string }[] = [
   { status: 'backlog', label: 'To-Do', color: '#784BD1' },
   { status: 'in_progress', label: 'In Progress', color: '#579BFC' },
+  { status: 'needs_testing', label: 'Needs Testing', color: '#A25DDC' },
   { status: 'done', label: 'Done', color: '#00C875' },
 ];
 

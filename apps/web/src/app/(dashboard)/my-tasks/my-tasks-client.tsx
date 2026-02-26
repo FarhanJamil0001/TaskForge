@@ -7,7 +7,6 @@ import type { Task, TaskStatus, TaskPriority } from '@taskforge/shared';
 import {
   EditableTitleCell,
   GripIcon,
-  type GroupConfig,
 } from '@/components/group-section';
 import { BoardToolbar, type SortField, type SortDir } from '@/components/board-toolbar';
 import { StatusPill } from '@/components/status-pill';
@@ -32,14 +31,6 @@ interface OrgMember {
   created_at: string;
 }
 
-// Match project board group order: To-Do, In Progress, Done
-const GROUPS: GroupConfig[] = [
-  { status: 'backlog', label: 'To-Do', color: '#784BD1' },
-  { status: 'in_progress', label: 'In Progress', color: '#579BFC' },
-  { status: 'done', label: 'Done', color: '#00C875' },
-];
-
-// Same as board-table GroupSection, with extra Project column
 const COL_GRID =
   'grid-cols-[minmax(280px,2.5fr)_minmax(100px,1fr)_90px_140px_120px_110px_minmax(120px,1.5fr)]';
 
@@ -48,6 +39,51 @@ const PRIORITY_ORDER: Record<TaskPriority, number> = {
   medium: 2,
   low: 1,
 };
+
+// ── Date bucket helpers ──
+
+function toDateOnly(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function addDays(d: Date, n: number): Date {
+  const r = new Date(d);
+  r.setDate(r.getDate() + n);
+  return r;
+}
+
+type DateBucket = 'overdue' | 'today' | 'tomorrow' | 'next_7_days' | 'later' | 'no_date';
+
+interface BucketConfig {
+  key: DateBucket;
+  label: string;
+  color: string;
+}
+
+const DATE_BUCKETS: BucketConfig[] = [
+  { key: 'overdue', label: 'Overdue', color: '#E2445C' },
+  { key: 'today', label: 'Today', color: '#FDAB3D' },
+  { key: 'tomorrow', label: 'Tomorrow', color: '#579BFC' },
+  { key: 'next_7_days', label: 'Next 7 Days', color: '#784BD1' },
+  { key: 'later', label: 'Later', color: '#C4C4C4' },
+  { key: 'no_date', label: 'No Due Date', color: '#C4C4C4' },
+];
+
+function getDateBucket(dueDateStr: string | null): DateBucket {
+  if (!dueDateStr) return 'no_date';
+  const today = toDateOnly(new Date());
+  const tomorrow = addDays(today, 1);
+  const weekEnd = addDays(today, 7);
+  const due = toDateOnly(new Date(dueDateStr));
+
+  if (due < today) return 'overdue';
+  if (due.getTime() === today.getTime()) return 'today';
+  if (due.getTime() === tomorrow.getTime()) return 'tomorrow';
+  if (due <= weekEnd) return 'next_7_days';
+  return 'later';
+}
+
+// ── Row component ──
 
 function MyTasksTaskRow({
   task,
@@ -150,6 +186,79 @@ function MyTasksTaskRow({
   );
 }
 
+// ── Section component (reusable for date buckets and needs-testing) ──
+
+function TaskSection({
+  label,
+  color,
+  tasks,
+  collapsed,
+  onToggle,
+  renderRow,
+}: {
+  label: string;
+  color: string;
+  tasks: TaskWithProject[];
+  collapsed: boolean;
+  onToggle: () => void;
+  renderRow: (task: TaskWithProject) => React.ReactNode;
+}) {
+  if (tasks.length === 0) return null;
+
+  return (
+    <div className="mb-5">
+      <button
+        onClick={onToggle}
+        className="group mb-1 flex items-center gap-2 rounded px-1 py-1 transition hover:bg-gray-100"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
+          fill="none"
+          className={`transition-transform ${collapsed ? '' : 'rotate-90'}`}
+          style={{ color }}
+        >
+          <path
+            d="M6 4l4 4-4 4"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        <span className="text-[15px] font-bold" style={{ color }}>
+          {label}
+        </span>
+        <span className="text-xs text-txt-secondary">
+          {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
+        </span>
+      </button>
+
+      {!collapsed && (
+        <div className="overflow-hidden rounded-lg border border-monday-border bg-white">
+          <div style={{ borderLeft: `5px solid ${color}` }}>
+            <div
+              className={`grid ${COL_GRID} border-b border-monday-border bg-[#F7F7F9] text-[11px] font-semibold uppercase tracking-wider text-txt-secondary`}
+            >
+              <div className="px-4 py-2.5">Task</div>
+              <div className="border-l border-monday-border px-2 py-2.5 text-center">Project</div>
+              <div className="border-l border-monday-border px-2 py-2.5 text-center">Owner</div>
+              <div className="border-l border-monday-border px-2 py-2.5 text-center">Status</div>
+              <div className="border-l border-monday-border px-2 py-2.5 text-center">Due Date</div>
+              <div className="border-l border-monday-border px-2 py-2.5 text-center">Priority</div>
+              <div className="border-l border-monday-border px-2 py-2.5 text-center">Notes</div>
+            </div>
+            {tasks.map((task) => renderRow(task))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main client component ──
+
 export function MyTasksClient({
   tasks: initialTasks,
   orgMembers,
@@ -161,9 +270,8 @@ export function MyTasksClient({
 }) {
   const [tasks, setTasks] = useState<TaskWithProject[]>(initialTasks);
   const [editTask, setEditTask] = useState<TaskWithProject | null>(null);
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<TaskStatus>>(
-    new Set(),
-  );
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const [showCompleted, setShowCompleted] = useState(false);
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -172,6 +280,11 @@ export function MyTasksClient({
 
   const filteredAndSortedTasks = useMemo(() => {
     let result = [...tasks];
+
+    // Hide completed unless toggled
+    if (!showCompleted) {
+      result = result.filter((t) => t.status !== 'done');
+    }
 
     if (search) {
       const q = search.toLowerCase();
@@ -210,16 +323,32 @@ export function MyTasksClient({
     });
 
     return result;
-  }, [tasks, search, sortField, sortDir, filterPriority]);
+  }, [tasks, search, sortField, sortDir, filterPriority, showCompleted]);
 
-  const tasksByStatus = useMemo(() => {
-    const map: Record<TaskStatus, TaskWithProject[]> = {
-      backlog: [],
-      in_progress: [],
-      done: [],
+  // Split into needs-testing vs the rest, then bucket the rest by date
+  const { needsTestingTasks, dateBuckets, completedTasks } = useMemo(() => {
+    const needsTesting: TaskWithProject[] = [];
+    const completed: TaskWithProject[] = [];
+    const buckets: Record<DateBucket, TaskWithProject[]> = {
+      overdue: [],
+      today: [],
+      tomorrow: [],
+      next_7_days: [],
+      later: [],
+      no_date: [],
     };
-    filteredAndSortedTasks.forEach((t) => map[t.status].push(t));
-    return map;
+
+    for (const t of filteredAndSortedTasks) {
+      if (t.status === 'done') {
+        completed.push(t);
+      } else if (t.status === 'needs_testing') {
+        needsTesting.push(t);
+      } else {
+        buckets[getDateBucket(t.due_date)].push(t);
+      }
+    }
+
+    return { needsTestingTasks: needsTesting, dateBuckets: buckets, completedTasks: completed };
   }, [filteredAndSortedTasks]);
 
   useEffect(() => {
@@ -248,23 +377,47 @@ export function MyTasksClient({
     [supabase],
   );
 
-  const toggleGroup = useCallback((status: TaskStatus) => {
-    setCollapsedGroups((prev) => {
+  const toggleSection = useCallback((key: string) => {
+    setCollapsedSections((prev) => {
       const next = new Set(prev);
-      if (next.has(status)) next.delete(status);
-      else next.add(status);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   }, []);
 
+  const renderRow = useCallback(
+    (task: TaskWithProject) => (
+      <MyTasksTaskRow
+        key={task.id}
+        task={task}
+        projectId={task.project_id}
+        projectName={task.project_name}
+        onTaskClick={(t) => setEditTask(t as TaskWithProject)}
+        onStatusChange={(id, s) => handleUpdate(id, { status: s })}
+        onPriorityChange={(id, p) => handleUpdate(id, { priority: p })}
+        onAssigneeChange={(id, u) => handleUpdate(id, { assignee_user_id: u })}
+        onDueDateChange={(id, d) => handleUpdate(id, { due_date: d })}
+        onDescriptionChange={(id, desc) => handleUpdate(id, { description: desc })}
+        onTitleChange={(id, t) => handleUpdate(id, { title: t })}
+        orgMembers={orgMembers}
+      />
+    ),
+    [handleUpdate, orgMembers],
+  );
+
+  const incompleteTotalCount = tasks.filter((t) => t.status !== 'done').length;
+
   return (
     <div>
-      <h1 className="mb-1 text-[22px] font-bold text-txt-primary">
-        My Tasks
-      </h1>
-      <p className="mb-6 text-sm text-txt-secondary">
-        Tasks assigned to you across all projects
-      </p>
+      <div className="mb-6 flex items-end justify-between">
+        <div>
+          <h1 className="mb-1 text-[22px] font-bold text-txt-primary">My Tasks</h1>
+          <p className="text-sm text-txt-secondary">
+            Tasks assigned to you across all projects
+          </p>
+        </div>
+      </div>
 
       {tasks.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-monday-border bg-gray-50/50 py-16">
@@ -283,9 +436,7 @@ export function MyTasksClient({
               <path d="M6 2v4M12 2v4M2 8h14" />
             </svg>
           </div>
-          <h3 className="mb-1 text-lg font-semibold text-txt-primary">
-            No tasks assigned
-          </h3>
+          <h3 className="mb-1 text-lg font-semibold text-txt-primary">No tasks assigned</h3>
           <p className="text-center text-sm text-txt-secondary">
             Tasks assigned to you will appear here. Ask your team to assign you
             tasks, or create tasks and assign yourself.
@@ -306,107 +457,79 @@ export function MyTasksClient({
             onFilterChange={setFilterPriority}
           />
 
-          <div className="overflow-x-auto">
-          <div className="min-w-[900px]">
-          {GROUPS.map((group) => {
-            const groupTasks = tasksByStatus[group.status];
-            if (groupTasks.length === 0) return null;
-
-            const collapsed = collapsedGroups.has(group.status);
-
-            return (
-              <div key={group.status} className="mb-5">
-                <button
-                  onClick={() => toggleGroup(group.status)}
-                  className="group mb-1 flex items-center gap-2 rounded px-1 py-1 transition hover:bg-gray-100"
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    className={`transition-transform ${collapsed ? '' : 'rotate-90'}`}
-                    style={{ color: group.color }}
-                  >
-                    <path
-                      d="M6 4l4 4-4 4"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                  <span
-                    className="text-[15px] font-bold"
-                    style={{ color: group.color }}
-                  >
-                    {group.label}
-                  </span>
-                  <span className="text-xs text-txt-secondary">
-                    {groupTasks.length}{' '}
-                    {groupTasks.length === 1 ? 'task' : 'tasks'}
-                  </span>
-                </button>
-
-                {!collapsed && (
-                  <div className="overflow-hidden rounded-lg border border-monday-border bg-white">
-                    <div style={{ borderLeft: `5px solid ${group.color}` }}>
-                      <div
-                        className={`grid ${COL_GRID} border-b border-monday-border bg-[#F7F7F9] text-[11px] font-semibold uppercase tracking-wider text-txt-secondary`}
-                      >
-                        <div className="px-4 py-2.5">Task</div>
-                        <div className="border-l border-monday-border px-2 py-2.5 text-center">
-                          Project
-                        </div>
-                        <div className="border-l border-monday-border px-2 py-2.5 text-center">
-                          Owner
-                        </div>
-                        <div className="border-l border-monday-border px-2 py-2.5 text-center">
-                          Status
-                        </div>
-                        <div className="border-l border-monday-border px-2 py-2.5 text-center">
-                          Due Date
-                        </div>
-                        <div className="border-l border-monday-border px-2 py-2.5 text-center">
-                          Priority
-                        </div>
-                        <div className="border-l border-monday-border px-2 py-2.5 text-center">
-                          Notes
-                        </div>
-                      </div>
-
-                      {groupTasks.map((task) => (
-                        <MyTasksTaskRow
-                          key={task.id}
-                          task={task}
-                          projectId={task.project_id}
-                          projectName={task.project_name}
-                          onTaskClick={(t) => setEditTask(t as TaskWithProject)}
-                          onStatusChange={(id, s) => handleUpdate(id, { status: s })}
-                          onPriorityChange={(id, p) =>
-                            handleUpdate(id, { priority: p })
-                          }
-                          onAssigneeChange={(id, u) =>
-                            handleUpdate(id, { assignee_user_id: u })
-                          }
-                          onDueDateChange={(id, d) =>
-                            handleUpdate(id, { due_date: d })
-                          }
-                          onDescriptionChange={(id, desc) =>
-                            handleUpdate(id, { description: desc })
-                          }
-                          onTitleChange={(id, t) => handleUpdate(id, { title: t })}
-                          orgMembers={orgMembers}
-                        />
-                      ))}
-                    </div>
-                  </div>
+          {/* Show completed toggle */}
+          <div className="mb-4 flex items-center gap-2">
+            <button
+              onClick={() => setShowCompleted(!showCompleted)}
+              className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition ${
+                showCompleted
+                  ? 'bg-green-50 text-green-700'
+                  : 'text-txt-secondary hover:bg-gray-100'
+              }`}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="stroke-current">
+                {showCompleted ? (
+                  <><rect x="2" y="2" width="12" height="12" rx="2" strokeWidth="1.5" /><path d="M5 8l2 2 4-4" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></>
+                ) : (
+                  <rect x="2" y="2" width="12" height="12" rx="2" strokeWidth="1.5" />
                 )}
-              </div>
-            );
-          })}
+              </svg>
+              Show completed
+              {!showCompleted && tasks.filter((t) => t.status === 'done').length > 0 && (
+                <span className="rounded-full bg-gray-200 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
+                  {tasks.filter((t) => t.status === 'done').length}
+                </span>
+              )}
+            </button>
+
+            {incompleteTotalCount > 0 && (
+              <span className="text-xs text-txt-secondary">
+                {incompleteTotalCount} incomplete {incompleteTotalCount === 1 ? 'task' : 'tasks'}
+              </span>
+            )}
           </div>
-        </div>
+
+          <div className="overflow-x-auto">
+            <div className="min-w-[900px]">
+              {/* Needs Testing section */}
+              <TaskSection
+                label="Needs Testing"
+                color="#A25DDC"
+                tasks={needsTestingTasks}
+                collapsed={collapsedSections.has('needs_testing')}
+                onToggle={() => toggleSection('needs_testing')}
+                renderRow={renderRow}
+              />
+
+              {/* Date-based buckets */}
+              {DATE_BUCKETS.map((bucket) => {
+                const bucketTasks = dateBuckets[bucket.key];
+                return (
+                  <TaskSection
+                    key={bucket.key}
+                    label={bucket.label}
+                    color={bucket.color}
+                    tasks={bucketTasks}
+                    collapsed={collapsedSections.has(bucket.key)}
+                    onToggle={() => toggleSection(bucket.key)}
+                    renderRow={renderRow}
+                  />
+                );
+              })}
+
+              {/* Completed section (only when toggled on) */}
+              {showCompleted && (
+                <TaskSection
+                  label="Completed"
+                  color="#00C875"
+                  tasks={completedTasks}
+                  collapsed={collapsedSections.has('done')}
+                  onToggle={() => toggleSection('done')}
+                  renderRow={renderRow}
+                />
+              )}
+            </div>
+          </div>
         </>
       )}
 

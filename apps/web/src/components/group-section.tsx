@@ -41,6 +41,8 @@ interface GroupSectionProps {
   onAddTaskDone?: () => void;
   forceAdding?: boolean;
   orgMembers: OrgMember[];
+  hideHeader?: boolean;
+  droppableId?: string;
 }
 
 const COL_GRID = 'grid-cols-[minmax(280px,2.5fr)_90px_140px_120px_110px_minmax(120px,1.5fr)]';
@@ -256,7 +258,7 @@ function DraggableTaskRow({
   );
 }
 
-const QUICK_ADD_GROUPS: TaskStatus[] = ['backlog', 'in_progress'];
+const QUICK_ADD_GROUPS: TaskStatus[] = ['backlog', 'in_progress', 'needs_testing'];
 
 export function GroupSection({
   group,
@@ -274,12 +276,14 @@ export function GroupSection({
   onAddTaskDone,
   forceAdding,
   orgMembers,
+  hideHeader,
+  droppableId,
 }: GroupSectionProps) {
   const [adding, setAdding] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { setNodeRef, isOver } = useDroppable({ id: group.status });
+  const { setNodeRef, isOver } = useDroppable({ id: droppableId ?? group.status });
 
   const isAdding = adding || !!forceAdding;
   const showQuickAdd = QUICK_ADD_GROUPS.includes(group.status);
@@ -308,46 +312,48 @@ export function GroupSection({
   }
 
   return (
-    <div ref={setNodeRef} className="mb-5">
+    <div ref={setNodeRef} className={hideHeader ? '' : 'mb-5'}>
       {/* Group header */}
-      <div className="group mb-1 flex items-center gap-2 rounded px-1 py-1">
-        <button
-          onClick={onToggleCollapse}
-          className="flex items-center gap-2 transition hover:bg-gray-100"
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            className={`transition-transform ${collapsed ? '' : 'rotate-90'}`}
-            style={{ color: group.color }}
-          >
-            <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <span className="text-[15px] font-bold" style={{ color: group.color }}>
-            {group.label}
-          </span>
-          <span className="text-xs text-txt-secondary">
-            {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
-          </span>
-        </button>
-        {showQuickAdd && !collapsed && (
+      {!hideHeader && (
+        <div className="group mb-1 flex items-center gap-2 rounded px-1 py-1">
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setAdding(true);
-            }}
-            className="ml-1 flex h-6 w-6 items-center justify-center rounded text-txt-secondary transition hover:bg-gray-200 hover:text-brand-500"
-            title={`Add task to ${group.label}`}
-            aria-label={`Add task to ${group.label}`}
+            onClick={onToggleCollapse}
+            className="flex items-center gap-2 transition hover:bg-gray-100"
           >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="stroke-current">
-              <path d="M7 1v12M1 7h12" strokeWidth="2" strokeLinecap="round" />
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              className={`transition-transform ${collapsed ? '' : 'rotate-90'}`}
+              style={{ color: group.color }}
+            >
+              <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
+            <span className="text-[15px] font-bold" style={{ color: group.color }}>
+              {group.label}
+            </span>
+            <span className="text-xs text-txt-secondary">
+              {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
+            </span>
           </button>
-        )}
-      </div>
+          {showQuickAdd && !collapsed && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setAdding(true);
+              }}
+              className="ml-1 flex h-6 w-6 items-center justify-center rounded text-txt-secondary transition hover:bg-gray-200 hover:text-brand-500"
+              title={`Add task to ${group.label}`}
+              aria-label={`Add task to ${group.label}`}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="stroke-current">
+                <path d="M7 1v12M1 7h12" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </button>
+          )}
+        </div>
+      )}
 
       {!collapsed && (
         <div
