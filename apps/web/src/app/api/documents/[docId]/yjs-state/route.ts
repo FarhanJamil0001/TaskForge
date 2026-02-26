@@ -16,19 +16,20 @@ export async function POST(
   }
 
   const body = await request.json();
-  const { state } = body as { state: number[] };
-  if (!Array.isArray(state)) {
+  const { state } = body as { state: string | number[] };
+
+  let hexString: string;
+  if (typeof state === 'string') {
+    hexString = '\\x' + Buffer.from(state, 'base64').toString('hex');
+  } else if (Array.isArray(state)) {
+    hexString = '\\x' + Buffer.from(new Uint8Array(state)).toString('hex');
+  } else {
     return NextResponse.json({ error: 'Invalid state' }, { status: 400 });
   }
 
-  const buffer = Buffer.from(new Uint8Array(state));
-
   const { error } = await supabase
     .from('project_documents')
-    .update({
-      yjs_state: buffer,
-      updated_at: new Date().toISOString(),
-    })
+    .update({ yjs_state: hexString })
     .eq('id', docId);
 
   if (error) {

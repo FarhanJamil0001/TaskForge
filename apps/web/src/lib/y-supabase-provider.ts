@@ -406,6 +406,15 @@ export class SupabaseProvider {
       this.broadcastTimeout = null;
     }
 
+    if (this.pendingUpdates.length > 0) {
+      const mergedUpdate =
+        this.pendingUpdates.length === 1
+          ? this.pendingUpdates[0]
+          : Y.mergeUpdates(this.pendingUpdates);
+      this.pendingUpdates = [];
+      this.broadcastUpdate(mergedUpdate);
+    }
+
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
       this.reconnectTimeout = null;

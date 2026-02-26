@@ -27,6 +27,8 @@ const COLORS = [
   '#F4511E', '#6D4C41',
 ];
 
+const SAVE_DEBOUNCE_MS = 1500;
+
 function hashToColor(userId: string): string {
   let hash = 0;
   for (let i = 0; i < userId.length; i++) {
@@ -34,6 +36,18 @@ function hashToColor(userId: string): string {
     hash |= 0;
   }
   return COLORS[Math.abs(hash) % COLORS.length];
+}
+
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode.apply(
+      null,
+      Array.from(bytes.subarray(i, i + chunkSize)) as number[],
+    );
+  }
+  return btoa(binary);
 }
 
 const BulletSlashCommand = Extension.create({
@@ -77,8 +91,6 @@ function FormatButton({
   );
 }
 
-// Save on every change; no debounce so nothing is ever lost.
-
 export type ViewingUser = { name: string; color: string };
 
 export function CollaborativeDocumentEditor({
@@ -103,6 +115,11 @@ export function CollaborativeDocumentEditor({
 
   const yDocRef = useRef<Y.Doc | null>(null);
   const providerRef = useRef<SupabaseProvider | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveInProgressRef = useRef(false);
+  const pendingSaveRef = useRef(false);
+  const docIdRef = useRef(doc.id);
+  docIdRef.current = doc.id;
 
   const { yDoc, provider } = useMemo(() => {
     const ydoc = new Y.Doc();
@@ -127,8 +144,6 @@ export function CollaborativeDocumentEditor({
         console.warn('Failed to load yjs_state, starting fresh:', e);
       }
     }
-    // Legacy JSON content migration: docs without yjs_state start empty.
-    // First collaborator to open will have empty doc; others will sync via Yjs.
 
     const prov = new SupabaseProvider(
       `doc-yjs:${doc.id}`,
@@ -144,7 +159,7 @@ export function CollaborativeDocumentEditor({
     providerRef.current = prov;
 
     return { yDoc: ydoc, provider: prov };
-  }, [doc.id]); // eslint-disable-line react-hooks/exhaustive-deps -- only recreate when doc id changes
+  }, [doc.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const userInfo = useMemo(() => {
     if (!currentUser) return { name: 'Anonymous', color: '#6D4C41' };
@@ -155,24 +170,71 @@ export function CollaborativeDocumentEditor({
     };
   }, [currentUser]);
 
+  // ---- Save system ----
+  // Encodes current Yjs state and POSTs to the persistence API.
+  // Uses base64 encoding to keep payload compact.
   const saveYjsState = useCallback(async () => {
-    if (!yDocRef.current || !doc.id) return;
-    const state = Y.encodeStateAsUpdate(yDocRef.current);
+    const ydoc = yDocRef.current;
+    if (!ydoc) return;
+    const state = Y.encodeStateAsUpdate(ydoc);
     if (state.length <= 2) return;
 
     try {
-      await fetch(`/api/documents/${doc.id}/yjs-state`, {
+      await fetch(`/api/documents/${docIdRef.current}/yjs-state`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ state: Array.from(new Uint8Array(state)) }),
+        body: JSON.stringify({ state: uint8ArrayToBase64(state) }),
       });
     } catch (e) {
       console.warn('Document save failed:', e);
     }
-  }, [doc.id]);
+  }, []);
 
-  const saveInProgressRef = useRef(false);
-  const saveAgainAfterRef = useRef(false);
+  const executeSave = useCallback(() => {
+    if (saveInProgressRef.current) {
+      pendingSaveRef.current = true;
+      return;
+    }
+    saveInProgressRef.current = true;
+    pendingSaveRef.current = false;
+    saveYjsState().finally(() => {
+      saveInProgressRef.current = false;
+      if (pendingSaveRef.current) {
+        pendingSaveRef.current = false;
+        executeSave();
+      }
+    });
+  }, [saveYjsState]);
+
+  const scheduleSave = useCallback(() => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      saveTimerRef.current = null;
+      executeSave();
+    }, SAVE_DEBOUNCE_MS);
+  }, [executeSave]);
+
+  const flushSave = useCallback(() => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    executeSave();
+  }, [executeSave]);
+
+  // Reliable save via sendBeacon — works during page unload when fetch is cancelled.
+  const beaconSave = useCallback(() => {
+    const ydoc = yDocRef.current;
+    if (!ydoc) return;
+    const state = Y.encodeStateAsUpdate(ydoc);
+    if (state.length <= 2) return;
+
+    const blob = new Blob(
+      [JSON.stringify({ state: uint8ArrayToBase64(state) })],
+      { type: 'application/json' },
+    );
+    navigator.sendBeacon(`/api/documents/${docIdRef.current}/yjs-state`, blob);
+  }, []);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -239,42 +301,45 @@ export function CollaborativeDocumentEditor({
     },
   });
 
-  // Save on every document change (local or remote). No debounce — nothing is ever lost.
-  // If a save is already in progress, we save again when it finishes so we never skip state.
+  // Only save on LOCAL Yjs updates — remote changes from other peers are already
+  // persisted by the peer that originated them. Debounced to batch rapid keystrokes.
   useEffect(() => {
-    if (!yDocRef.current) return;
+    const ydoc = yDocRef.current;
+    if (!ydoc) return;
 
-    const runSave = () => {
-      if (saveInProgressRef.current) {
-        saveAgainAfterRef.current = true;
-        return;
-      }
-      saveInProgressRef.current = true;
-      saveAgainAfterRef.current = false;
-      saveYjsState().then(() => {
-        saveInProgressRef.current = false;
-        if (saveAgainAfterRef.current) {
-          saveAgainAfterRef.current = false;
-          runSave();
-        }
-      }).catch(() => {
-        saveInProgressRef.current = false;
-        if (saveAgainAfterRef.current) {
-          saveAgainAfterRef.current = false;
-          runSave();
-        }
-      });
+    const onUpdate = (_update: Uint8Array, origin: unknown) => {
+      if (origin === 'remote') return;
+      scheduleSave();
     };
 
-    const yDoc = yDocRef.current;
-    const onDocUpdate = () => runSave();
+    ydoc.on('update', onUpdate);
+    return () => {
+      ydoc.off('update', onUpdate);
+    };
+  }, [scheduleSave]);
 
-    yDoc.on('update', onDocUpdate);
+  // Flush pending save when user hides tab; use sendBeacon on page unload.
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') flushSave();
+    };
+
+    const handleBeforeUnload = () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+      beaconSave();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
-      yDoc.off('update', onDocUpdate);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [saveYjsState]);
+  }, [flushSave, beaconSave]);
 
   useEffect(() => {
     editor?.commands.updateUser(userInfo);
@@ -318,13 +383,18 @@ export function CollaborativeDocumentEditor({
     setTitle(doc.title);
   }, [doc.title]);
 
+  // Cleanup on unmount: flush save, then tear down provider & doc.
   useEffect(() => {
     return () => {
-      saveYjsState();
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+      beaconSave();
       providerRef.current?.destroy();
       yDocRef.current?.destroy();
     };
-  }, [saveYjsState]);
+  }, [beaconSave]);
 
   if (!editor) return null;
 
