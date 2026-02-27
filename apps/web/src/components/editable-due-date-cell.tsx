@@ -110,12 +110,12 @@ export function EditableDueDateCell({
           setOpen(!open);
         }}
         onPointerDown={(e) => e.stopPropagation()}
-        className={`min-h-[34px] w-full rounded px-2 py-1.5 text-center text-[13px] transition-colors hover:bg-gray-100 ${
+        className={`min-h-[34px] w-full rounded px-2 py-1.5 text-center text-[13px] transition-colors hover:bg-gray-100 dark:hover:bg-zinc-700/50 ${
           dueDate
             ? isOverdue(dueDate)
-              ? 'font-medium text-status-red'
-              : 'text-txt-primary'
-            : 'text-gray-300'
+              ? 'font-medium text-status-red dark:text-red-400'
+              : 'text-txt-primary dark:text-zinc-100'
+            : 'text-gray-300 dark:text-zinc-500'
         }`}
       >
         {dueDate ? formatDate(dueDate) : '—'}
@@ -124,7 +124,7 @@ export function EditableDueDateCell({
         createPortal(
           <div
             ref={popoverRef}
-            className="fixed z-[9999] rounded-lg border border-monday-border bg-white p-4 shadow-xl"
+            className="fixed z-[9999] rounded-lg border border-monday-border bg-white p-4 shadow-xl dark:border-zinc-600 dark:bg-zinc-800"
             style={{ top: pos.top, left: pos.left, width: POPOVER_W }}
           >
             {/* Quick one-click options */}
@@ -132,28 +132,28 @@ export function EditableDueDateCell({
               <button
                 type="button"
                 onClick={() => setQuickDate(0)}
-                className="rounded bg-gray-100 px-2.5 py-1.5 text-xs font-medium text-txt-primary transition-colors hover:bg-gray-200"
+                className="rounded bg-gray-100 px-2.5 py-1.5 text-xs font-medium text-txt-primary transition-colors hover:bg-gray-200 dark:bg-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-600"
               >
                 Today
               </button>
               <button
                 type="button"
                 onClick={() => setQuickDate(1)}
-                className="rounded bg-gray-100 px-2.5 py-1.5 text-xs font-medium text-txt-primary transition-colors hover:bg-gray-200"
+                className="rounded bg-gray-100 px-2.5 py-1.5 text-xs font-medium text-txt-primary transition-colors hover:bg-gray-200 dark:bg-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-600"
               >
                 Tomorrow
               </button>
               <button
                 type="button"
                 onClick={() => setQuickDate(7)}
-                className="rounded bg-gray-100 px-2.5 py-1.5 text-xs font-medium text-txt-primary transition-colors hover:bg-gray-200"
+                className="rounded bg-gray-100 px-2.5 py-1.5 text-xs font-medium text-txt-primary transition-colors hover:bg-gray-200 dark:bg-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-600"
               >
                 Next week
               </button>
               <button
                 type="button"
                 onClick={() => handleDateSelect(null)}
-                className="rounded px-2.5 py-1.5 text-xs text-txt-secondary transition-colors hover:bg-gray-100 hover:text-txt-primary"
+                className="rounded px-2.5 py-1.5 text-xs text-txt-secondary transition-colors hover:bg-gray-100 hover:text-txt-primary dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
               >
                 Clear
               </button>
@@ -167,7 +167,7 @@ export function EditableDueDateCell({
                 const v = e.target.value;
                 if (v) handleDateSelect(v);
               }}
-              className="w-full rounded border border-monday-border px-3 py-2 text-sm text-txt-primary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              className="w-full rounded border border-monday-border px-3 py-2 text-sm text-txt-primary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
               autoFocus
             />
           </div>,

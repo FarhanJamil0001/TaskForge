@@ -71,7 +71,7 @@ function SortableTab({
       <div
         {...attributes}
         {...listeners}
-        className="cursor-grab touch-none rounded p-1 text-txt-secondary hover:bg-gray-100 active:cursor-grabbing"
+        className="cursor-grab touch-none rounded p-1 text-txt-secondary hover:bg-gray-100 active:cursor-grabbing dark:text-zinc-400 dark:hover:bg-zinc-700"
         title="Drag to reorder"
         aria-label="Drag to reorder tab"
       >
@@ -94,15 +94,15 @@ function SortableTab({
             if (e.key === 'Escape') onCancelRename();
           }}
           autoFocus
-          className="min-w-[80px] rounded border border-brand-500 bg-white px-2 py-1.5 text-sm text-txt-primary focus:outline-none focus:ring-1 focus:ring-brand-500"
+          className="min-w-[80px] rounded border border-brand-500 bg-white px-2 py-1.5 text-sm text-txt-primary focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-brand-500 dark:bg-zinc-800 dark:text-zinc-100"
         />
       ) : (
         <button
           onClick={onSelect}
           className={`relative shrink-0 px-4 py-2.5 text-sm font-medium transition touch-manipulation ${
             isSelected
-              ? 'text-brand-500 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:rounded-full after:bg-brand-500 after:content-[""]'
-              : 'text-txt-secondary hover:text-txt-primary active:text-txt-primary'
+              ? 'text-brand-500 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:rounded-full after:bg-brand-500 after:content-[""] dark:text-brand-400'
+              : 'text-txt-secondary hover:text-txt-primary active:text-txt-primary dark:text-zinc-400 dark:hover:text-zinc-100'
           }`}
         >
           {view.name}
@@ -114,7 +114,7 @@ function SortableTab({
             e.stopPropagation();
             onStartRename();
           }}
-          className="rounded p-1 text-txt-secondary hover:bg-gray-100 hover:text-txt-primary"
+          className="rounded p-1 text-txt-secondary hover:bg-gray-100 hover:text-txt-primary dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
           title="Rename"
           aria-label="Rename tab"
         >
@@ -128,7 +128,7 @@ function SortableTab({
               e.stopPropagation();
               onDelete();
             }}
-            className="rounded p-1 text-txt-secondary hover:bg-red-50 hover:text-red-600"
+            className="rounded p-1 text-txt-secondary hover:bg-red-50 hover:text-red-600 dark:text-zinc-400 dark:hover:bg-red-900/30 dark:hover:text-red-400"
             title="Delete"
             aria-label="Delete tab"
           >
@@ -353,7 +353,7 @@ export function ProjectViewClient({
       {/* Header */}
       <div className="mb-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-xl font-bold text-txt-primary sm:text-[22px]">
+          <h1 className="text-xl font-bold text-txt-primary sm:text-[22px] dark:text-zinc-100">
             {projectName}
           </h1>
           <div className="shrink-0">

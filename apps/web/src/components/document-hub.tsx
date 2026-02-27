@@ -119,15 +119,15 @@ function SortableDocumentItem({
         isDragging ? 'opacity-50' : ''
       } ${
         isSelected
-          ? 'bg-brand-500/10 text-brand-600'
-          : 'text-txt-secondary hover:bg-gray-100 hover:text-txt-primary'
+          ? 'bg-brand-500/10 text-brand-600 dark:bg-brand-500/20 dark:text-brand-400'
+          : 'text-txt-secondary hover:bg-gray-100 hover:text-txt-primary dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-100'
       }`}
     >
       <button
         {...attributes}
         {...listeners}
         type="button"
-        className="cursor-grab touch-none rounded p-0.5 hover:bg-gray-200 active:cursor-grabbing"
+        className="cursor-grab touch-none rounded p-0.5 hover:bg-gray-200 active:cursor-grabbing dark:hover:bg-zinc-600"
         aria-label="Drag to reorder"
         onClick={(e) => e.stopPropagation()}
       >
@@ -246,7 +246,7 @@ function EmptyState({
   }
 
   return (
-    <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-monday-border bg-gray-50/50 py-16">
+    <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-monday-border bg-gray-50/50 py-16 dark:border-zinc-700 dark:bg-zinc-800/50">
       <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-brand-500/10 text-brand-500">
         <svg
           width="28"
@@ -265,10 +265,10 @@ function EmptyState({
           <polyline points="10 9 9 9 8 9" />
         </svg>
       </div>
-      <h3 className="mb-1 text-lg font-semibold text-txt-primary">
+      <h3 className="mb-1 text-lg font-semibold text-txt-primary dark:text-zinc-100">
         Document Hub
       </h3>
-      <p className="mb-6 max-w-sm text-center text-sm text-txt-secondary">
+      <p className="mb-6 max-w-sm text-center text-sm text-txt-secondary dark:text-zinc-400">
         Plan project ideas, keep notes, and document your work in one place.
       </p>
       <button
@@ -436,7 +436,7 @@ export function DocumentHub({
       {/* Sidebar - horizontal scroll on mobile, vertical on desktop */}
       <aside className="shrink-0 md:w-56">
         <div className="mb-3 flex items-center justify-between gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wider text-txt-secondary">
+          <span className="text-xs font-semibold uppercase tracking-wider text-txt-secondary dark:text-zinc-400">
             Documents
           </span>
           <NewDocumentButton
@@ -452,8 +452,8 @@ export function DocumentHub({
           onReorder={handleReorder}
         />
         {viewingUsers.length > 0 && (
-          <div className="mt-6 border-t border-monday-border pt-4">
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-txt-secondary">
+          <div className="mt-6 border-t border-monday-border pt-4 dark:border-zinc-600">
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-txt-secondary dark:text-zinc-400">
               Viewing
             </span>
             <div className="space-y-1.5">
@@ -466,7 +466,7 @@ export function DocumentHub({
                     className="h-3 w-0.5 shrink-0 rounded-full"
                     style={{ backgroundColor: u.color }}
                   />
-                  <span className="truncate text-txt-primary">{u.name}</span>
+                  <span className="truncate text-txt-primary dark:text-zinc-100">{u.name}</span>
                 </div>
               ))}
             </div>

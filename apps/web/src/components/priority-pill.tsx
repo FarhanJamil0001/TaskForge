@@ -3,11 +3,18 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import type { TaskPriority } from '@taskforge/shared';
+import { useTheme } from './theme-provider';
 
-const PRIORITY_CONFIG: Record<TaskPriority, { label: string; bg: string }> = {
+const PRIORITY_CONFIG_LIGHT: Record<TaskPriority, { label: string; bg: string }> = {
   high: { label: 'High', bg: '#E2445C' },
   medium: { label: 'Medium', bg: '#FDAB3D' },
   low: { label: 'Low', bg: '#579BFC' },
+};
+
+const PRIORITY_CONFIG_DARK: Record<TaskPriority, { label: string; bg: string }> = {
+  high: { label: 'High', bg: '#dc2626' },
+  medium: { label: 'Medium', bg: '#d97706' },
+  low: { label: 'Low', bg: '#2563eb' },
 };
 
 const DROPDOWN_W = 140;
@@ -19,6 +26,10 @@ export function PriorityPill({
   priority: TaskPriority;
   onChange: (p: TaskPriority) => void;
 }) {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
+  const PRIORITY_CONFIG = isDark ? PRIORITY_CONFIG_DARK : PRIORITY_CONFIG_LIGHT;
+
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -80,7 +91,7 @@ export function PriorityPill({
         createPortal(
           <div
             ref={dropdownRef}
-            className="fixed z-[9999] rounded-lg border border-monday-border bg-white p-1.5 shadow-xl"
+            className="fixed z-[9999] rounded-lg border border-monday-border bg-white p-1.5 shadow-xl dark:border-zinc-600 dark:bg-zinc-800"
             style={{ top: pos.top, left: pos.left, width: DROPDOWN_W }}
           >
             {(

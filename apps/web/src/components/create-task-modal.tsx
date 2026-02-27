@@ -39,15 +39,15 @@ export function CreateTaskModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="mx-4 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl border border-monday-border bg-white shadow-2xl"
+        className="mx-4 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl border border-monday-border bg-white shadow-2xl dark:border-zinc-600 dark:bg-zinc-800"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-monday-border px-6 py-4">
-          <h2 className="text-lg font-semibold text-txt-primary">Create Task</h2>
+        <div className="flex items-center justify-between border-b border-monday-border px-6 py-4 dark:border-zinc-600">
+          <h2 className="text-lg font-semibold text-txt-primary dark:text-zinc-100">Create Task</h2>
           <button
             onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-txt-secondary transition hover:bg-gray-100 hover:text-txt-primary"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-txt-secondary transition hover:bg-gray-100 hover:text-txt-primary dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="stroke-current">
               <path d="M2 2l10 10M12 2L2 12" strokeWidth="1.5" strokeLinecap="round" />
@@ -58,7 +58,7 @@ export function CreateTaskModal({
         {/* Body */}
         <form onSubmit={handleSubmit} className="space-y-4 p-6">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-txt-primary">Title *</label>
+            <label className="mb-1.5 block text-sm font-medium text-txt-primary dark:text-zinc-200">Title *</label>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -69,7 +69,7 @@ export function CreateTaskModal({
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-txt-primary">Description</label>
+            <label className="mb-1.5 block text-sm font-medium text-txt-primary dark:text-zinc-200">Description</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -79,7 +79,7 @@ export function CreateTaskModal({
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-txt-primary">Status</label>
+              <label className="mb-1.5 block text-sm font-medium text-txt-primary dark:text-zinc-200">Status</label>
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as TaskStatus)}
@@ -92,7 +92,7 @@ export function CreateTaskModal({
               </select>
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-txt-primary">Priority</label>
+              <label className="mb-1.5 block text-sm font-medium text-txt-primary dark:text-zinc-200">Priority</label>
               <select
                 value={priority}
                 onChange={(e) => setPriority(e.target.value as TaskPriority)}
@@ -104,7 +104,7 @@ export function CreateTaskModal({
               </select>
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-txt-primary">Due Date</label>
+              <label className="mb-1.5 block text-sm font-medium text-txt-primary dark:text-zinc-200">Due Date</label>
               <input
                 type="date"
                 value={dueDate}
@@ -115,7 +115,7 @@ export function CreateTaskModal({
           </div>
 
           {/* Footer */}
-          <div className="flex justify-end gap-2 border-t border-monday-border pt-4">
+          <div className="flex justify-end gap-2 border-t border-monday-border pt-4 dark:border-zinc-600">
             <button type="button" onClick={onClose} className="btn-secondary">
               Cancel
             </button>

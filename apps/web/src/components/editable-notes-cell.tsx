@@ -93,7 +93,7 @@ export function EditableNotesCell({
           setOpen(!open);
         }}
         onPointerDown={(e) => e.stopPropagation()}
-        className="min-h-[34px] w-full cursor-text rounded px-3 py-2 text-left text-[13px] text-txt-secondary transition-colors hover:bg-gray-100 hover:text-txt-primary"
+        className="min-h-[34px] w-full cursor-text rounded px-3 py-2 text-left text-[13px] text-txt-secondary transition-colors hover:bg-gray-100 hover:text-txt-primary dark:text-zinc-400 dark:hover:bg-zinc-700/50 dark:hover:text-zinc-100"
       >
         <span className="line-clamp-2 block truncate">
           {description || 'Add notes...'}
@@ -103,10 +103,10 @@ export function EditableNotesCell({
         createPortal(
           <div
             ref={popoverRef}
-            className="fixed z-[9999] rounded-lg border border-monday-border bg-white shadow-xl"
+            className="fixed z-[9999] rounded-lg border border-monday-border bg-white shadow-xl dark:border-zinc-600 dark:bg-zinc-800"
             style={{ top: pos.top, left: pos.left, width: POPOVER_W }}
           >
-            <div className="border-b border-monday-border px-3 py-2 text-xs font-semibold uppercase tracking-wider text-txt-secondary">
+            <div className="border-b border-monday-border px-3 py-2 text-xs font-semibold uppercase tracking-wider text-txt-secondary dark:border-zinc-600 dark:text-zinc-400">
               Notes
             </div>
             <textarea
@@ -124,11 +124,11 @@ export function EditableNotesCell({
                 }
               }}
               placeholder="Add notes..."
-              className="w-full resize-none border-0 px-3 py-2 text-sm text-txt-primary placeholder:text-txt-secondary focus:outline-none"
+              className="w-full resize-none border-0 px-3 py-2 text-sm text-txt-primary placeholder:text-txt-secondary focus:outline-none dark:bg-transparent dark:text-zinc-100 dark:placeholder:text-zinc-500"
               rows={6}
               style={{ minHeight: POPOVER_H }}
             />
-            <div className="flex justify-end border-t border-monday-border px-3 py-2">
+            <div className="flex justify-end border-t border-monday-border px-3 py-2 dark:border-zinc-600">
               <button
                 onClick={handleSave}
                 className="rounded bg-brand-500 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-brand-600"

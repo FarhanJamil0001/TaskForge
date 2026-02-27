@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -63,24 +64,27 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-zinc-900 dark:to-zinc-950">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-gray-900">TaskForge</h1>
-          <p className="mt-2 text-sm text-gray-600">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-zinc-100">TaskForge</h1>
+          <p className="mt-2 text-sm text-gray-600 dark:text-zinc-400">
             Project management with Discord integration
           </p>
         </div>
 
         <div className="card">
-          <div className="mb-6 flex rounded-lg bg-gray-100 p-1">
+          <div className="mb-6 flex rounded-lg bg-gray-100 p-1 dark:bg-zinc-700">
             <button
               onClick={() => {
                 setIsLogin(true);
                 setSignUpSuccess(false);
               }}
               className={`flex-1 rounded-md py-2 text-sm font-medium transition ${
-                isLogin ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                isLogin ? 'bg-white text-gray-900 shadow-sm dark:bg-zinc-600 dark:text-zinc-100' : 'text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200'
               }`}
             >
               Sign In
@@ -91,7 +95,7 @@ export default function AuthPage() {
                 setSignUpSuccess(false);
               }}
               className={`flex-1 rounded-md py-2 text-sm font-medium transition ${
-                !isLogin ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                !isLogin ? 'bg-white text-gray-900 shadow-sm dark:bg-zinc-600 dark:text-zinc-100' : 'text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200'
               }`}
             >
               Sign Up
@@ -100,7 +104,7 @@ export default function AuthPage() {
 
           {signUpSuccess ? (
             <div className="space-y-4">
-              <div className="rounded-lg bg-green-50 p-4 text-sm text-green-800">
+              <div className="rounded-lg bg-green-50 p-4 text-sm text-green-800 dark:bg-green-900/30 dark:text-green-300">
                 <p className="font-medium">Check your email</p>
                 <p className="mt-1 text-green-700">
                   We&apos;ve sent a verification link to <strong>{email}</strong>. Click the link in that email to verify your account and sign in.
@@ -126,14 +130,14 @@ export default function AuthPage() {
           ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
-              <p className="rounded-lg bg-blue-50 p-3 text-sm text-blue-800">
+              <p className="rounded-lg bg-blue-50 p-3 text-sm text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
                 We&apos;ll send a verification email to your inbox. You&apos;ll need to click the link in that email to activate your account.
               </p>
             )}
             {!isLogin && (
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="firstName" className="mb-1 block text-sm font-medium text-gray-700">
+                  <label htmlFor="firstName" className="mb-1 block text-sm font-medium text-gray-700 dark:text-zinc-200">
                     First name
                   </label>
                   <input
@@ -147,7 +151,7 @@ export default function AuthPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="lastName" className="mb-1 block text-sm font-medium text-gray-700">
+                  <label htmlFor="lastName" className="mb-1 block text-sm font-medium text-gray-700 dark:text-zinc-200">
                     Last name
                   </label>
                   <input
@@ -163,7 +167,7 @@ export default function AuthPage() {
               </div>
             )}
             <div>
-              <label htmlFor="email" className="mb-1 block text-sm font-medium text-gray-700">
+              <label htmlFor="email" className="mb-1 block text-sm font-medium text-gray-700 dark:text-zinc-200">
                 Email
               </label>
               <input
@@ -177,7 +181,7 @@ export default function AuthPage() {
               />
             </div>
             <div>
-              <label htmlFor="password" className="mb-1 block text-sm font-medium text-gray-700">
+              <label htmlFor="password" className="mb-1 block text-sm font-medium text-gray-700 dark:text-zinc-200">
                 Password
               </label>
               <input
@@ -193,7 +197,7 @@ export default function AuthPage() {
             </div>
 
             {error && (
-              <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>
+              <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-300">{error}</div>
             )}
 
             <button type="submit" disabled={loading} className="btn-primary w-full">

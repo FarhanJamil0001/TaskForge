@@ -75,7 +75,7 @@ export function MobileBottomNav({ orgId, projects }: MobileBottomNavProps) {
     <>
       {/* iOS-style bottom nav: floating, rounded, safe area */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden">
-        <div className="mx-3 mb-3 rounded-2xl border border-gray-200/80 bg-white/95 shadow-lg backdrop-blur-xl supports-[backdrop-filter]:bg-white/80">
+        <div className="mx-3 mb-3 rounded-2xl border border-gray-200/80 bg-white/95 shadow-lg backdrop-blur-xl supports-[backdrop-filter]:bg-white/80 dark:border-zinc-700/80 dark:bg-zinc-900/95 dark:supports-[backdrop-filter]:bg-zinc-900/80">
           <div className="flex items-center justify-around px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
             {navItems.map((item) => {
               if (item.isSheet) {
@@ -85,7 +85,7 @@ export function MobileBottomNav({ orgId, projects }: MobileBottomNavProps) {
                     key={item.label}
                     onClick={() => setShowProjectSheet(true)}
                     className={`flex flex-col items-center gap-0.5 px-4 py-1.5 transition ${
-                      isActive ? 'text-brand-500' : 'text-txt-secondary'
+                      isActive ? 'text-brand-500 dark:text-brand-400' : 'text-txt-secondary dark:text-zinc-400'
                     }`}
                   >
                     {item.icon}
@@ -100,7 +100,7 @@ export function MobileBottomNav({ orgId, projects }: MobileBottomNavProps) {
                   key={item.label}
                   href={href}
                   className={`flex flex-col items-center gap-0.5 px-4 py-1.5 transition ${
-                    isActive ? 'text-brand-500' : 'text-txt-secondary'
+                    isActive ? 'text-brand-500 dark:text-brand-400' : 'text-txt-secondary dark:text-zinc-400'
                   }`}
                 >
                   {item.icon}
@@ -124,12 +124,12 @@ export function MobileBottomNav({ orgId, projects }: MobileBottomNavProps) {
             className="absolute inset-0 bg-black/40"
             onClick={() => setShowProjectSheet(false)}
           />
-          <div className="absolute bottom-0 left-0 right-0 max-h-[70vh] overflow-hidden rounded-t-2xl bg-white shadow-2xl">
-            <div className="sticky top-0 flex items-center justify-between border-b border-monday-border bg-white px-4 py-3">
-              <h2 className="text-lg font-semibold text-txt-primary">Projects</h2>
+          <div className="absolute bottom-0 left-0 right-0 max-h-[70vh] overflow-hidden rounded-t-2xl bg-white shadow-2xl dark:bg-zinc-900">
+            <div className="sticky top-0 flex items-center justify-between border-b border-monday-border bg-white px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900">
+              <h2 className="text-lg font-semibold text-txt-primary dark:text-zinc-100">Projects</h2>
               <button
                 onClick={() => setShowProjectSheet(false)}
-                className="rounded-full p-2 text-txt-secondary transition hover:bg-gray-100"
+                className="rounded-full p-2 text-txt-secondary transition hover:bg-gray-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
                 aria-label="Close"
               >
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="stroke-current">
@@ -139,7 +139,7 @@ export function MobileBottomNav({ orgId, projects }: MobileBottomNavProps) {
             </div>
             <div className="overflow-y-auto max-h-[calc(70vh-56px)] pb-[env(safe-area-inset-bottom)]">
               {projects.length === 0 ? (
-                <p className="px-4 py-8 text-center text-sm text-txt-secondary">
+                <p className="px-4 py-8 text-center text-sm text-txt-secondary dark:text-zinc-400">
                   No projects yet. Create one from the sidebar on desktop.
                 </p>
               ) : (
@@ -149,8 +149,8 @@ export function MobileBottomNav({ orgId, projects }: MobileBottomNavProps) {
                       key={p.id}
                       href={`/projects/${p.id}`}
                       onClick={() => setShowProjectSheet(false)}
-                      className={`flex items-center gap-3 px-4 py-3.5 transition active:bg-gray-50 ${
-                        pathname.startsWith(`/projects/${p.id}`) ? 'bg-brand-50 text-brand-600' : ''
+                      className={`flex items-center gap-3 px-4 py-3.5 transition active:bg-gray-50 dark:active:bg-zinc-800 ${
+                        pathname.startsWith(`/projects/${p.id}`) ? 'bg-brand-50 text-brand-600 dark:bg-brand-500/20 dark:text-brand-400' : ''
                       }`}
                     >
                       <span
@@ -161,7 +161,7 @@ export function MobileBottomNav({ orgId, projects }: MobileBottomNavProps) {
                       >
                         {p.name[0]?.toUpperCase()}
                       </span>
-                      <span className="font-medium text-txt-primary">{p.name}</span>
+                      <span className="font-medium text-txt-primary dark:text-zinc-100">{p.name}</span>
                     </Link>
                   ))}
                 </div>

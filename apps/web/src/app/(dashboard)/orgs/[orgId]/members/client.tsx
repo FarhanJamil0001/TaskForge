@@ -199,17 +199,17 @@ export function MembersClient({
           </>
         )}
       </div>
-      <h1 className="mb-6 text-2xl font-bold">Members</h1>
+      <h1 className="mb-6 text-2xl font-bold text-txt-primary dark:text-zinc-100">Members</h1>
 
       {/* Join Code Section */}
       {isAdmin && (
         <div className="card mb-6">
-          <h2 className="mb-1 text-sm font-semibold text-gray-700">Join Code</h2>
+          <h2 className="mb-1 text-sm font-semibold text-gray-700 dark:text-zinc-200">Join Code</h2>
           <p className="mb-3 text-xs text-gray-400">
             Share this code with people so they can join the organization instantly.
           </p>
           <div className="flex items-center gap-3">
-            <code className="rounded-lg bg-gray-100 px-4 py-2 font-mono text-lg font-bold tracking-widest text-brand-600">
+            <code className="rounded-lg bg-gray-100 px-4 py-2 font-mono text-lg font-bold tracking-widest text-brand-600 dark:bg-zinc-700 dark:text-brand-400">
               {org.join_code ?? '—'}
             </code>
             <button onClick={copyJoinCode} className="btn-secondary text-xs">
@@ -229,7 +229,7 @@ export function MembersClient({
       {/* Invite by Email */}
       {isAdmin && (
         <div className="card mb-6">
-          <h2 className="mb-1 text-sm font-semibold text-gray-700">Invite by Email</h2>
+          <h2 className="mb-1 text-sm font-semibold text-gray-700 dark:text-zinc-200">Invite by Email</h2>
           <p className="mb-3 text-xs text-gray-400">
             The invited user will see this invite when they sign in with the same email address.
           </p>
@@ -268,7 +268,7 @@ export function MembersClient({
       {/* Pending Invites */}
       {invites.length > 0 && (
         <div className="card mb-6">
-          <h2 className="mb-3 text-sm font-semibold text-gray-700">Pending Invites</h2>
+          <h2 className="mb-3 text-sm font-semibold text-gray-700 dark:text-zinc-200">Pending Invites</h2>
           <div className="divide-y divide-gray-100">
             {invites.map((invite) => (
               <div
@@ -276,7 +276,7 @@ export function MembersClient({
                 className="flex items-center justify-between py-2.5"
               >
                 <div>
-                  <span className="text-sm font-medium text-gray-800">
+                  <span className="text-sm font-medium text-gray-800 dark:text-zinc-100">
                     {invite.email}
                   </span>
                   <span className="ml-2 inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">
@@ -302,7 +302,7 @@ export function MembersClient({
 
       {/* Members List */}
       <div className="card">
-        <h2 className="mb-3 text-sm font-semibold text-gray-700">
+        <h2 className="mb-3 text-sm font-semibold text-gray-700 dark:text-zinc-200">
           Members ({members.length})
         </h2>
         <div className="divide-y divide-gray-100">
@@ -315,13 +315,13 @@ export function MembersClient({
                 className="flex items-center justify-between py-3"
               >
                 <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-50 text-sm font-semibold text-brand-600">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-50 text-sm font-semibold text-brand-600 dark:bg-brand-500/20 dark:text-brand-400">
                     {member.first_name && member.last_name
                       ? `${member.first_name[0]}${member.last_name[0]}`.toUpperCase()
                       : (([member.first_name, member.last_name].filter(Boolean).join(' ') || member.email) ?? '?')[0]?.toUpperCase()}
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-800">
+                    <p className="text-sm font-medium text-gray-800 dark:text-zinc-100">
                       {([member.first_name, member.last_name].filter(Boolean).join(' ') || member.email) ?? 'Unknown'}
                       {isCurrentUser && (
                         <span className="ml-1.5 text-xs text-gray-400">(you)</span>
@@ -341,7 +341,7 @@ export function MembersClient({
                         handleRoleChange(member, e.target.value as OrgRole)
                       }
                       disabled={changingRole === member.id}
-                      className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600"
+                      className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-200"
                     >
                       <option value="admin">Admin</option>
                       <option value="member">Member</option>
@@ -361,7 +361,7 @@ export function MembersClient({
                   {isAdmin && !isCurrentUser && !isLastAdmin && (
                     <button
                       onClick={() => setConfirmRemove(member)}
-                      className="rounded-md p-1.5 text-gray-300 transition hover:bg-red-50 hover:text-red-500"
+                      className="rounded-md p-1.5 text-gray-300 transition hover:bg-red-50 hover:text-red-500 dark:text-zinc-500 dark:hover:bg-red-900/30 dark:hover:text-red-400"
                       title="Remove member"
                     >
                       <svg
@@ -390,9 +390,9 @@ export function MembersClient({
       {/* Remove confirmation modal */}
       {confirmRemove && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
-            <h2 className="text-lg font-semibold">Remove member?</h2>
-            <p className="mt-2 text-sm text-gray-500">
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl dark:bg-zinc-800">
+            <h2 className="text-lg font-semibold text-txt-primary dark:text-zinc-100">Remove member?</h2>
+            <p className="mt-2 text-sm text-gray-500 dark:text-zinc-400">
               Remove <strong>{confirmRemove.email}</strong> from{' '}
               <strong>{org.name}</strong>? They will lose access to all projects
               and data in this organization.

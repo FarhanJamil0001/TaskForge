@@ -14,7 +14,7 @@ import { PriorityPill } from '@/components/priority-pill';
 import { EditableOwnerCell } from '@/components/editable-owner-cell';
 import { EditableDueDateCell } from '@/components/editable-due-date-cell';
 import { EditableNotesCell } from '@/components/editable-notes-cell';
-import { TaskDetailModal } from '@/components/task-detail-modal';
+import { TaskDetailDrawer } from '@/components/task-detail-drawer';
 
 interface TaskWithProject extends Task {
   project_id: string;
@@ -186,6 +186,45 @@ function MyTasksTaskRow({
   );
 }
 
+// ── Sortable column header ──
+
+function SortableHeader({
+  field,
+  label,
+  currentField,
+  currentDir,
+  onSort,
+  align = 'center',
+}: {
+  field: SortField;
+  label: string;
+  currentField: SortField;
+  currentDir: SortDir;
+  onSort: (field: SortField, dir: SortDir) => void;
+  align?: 'left' | 'center';
+}) {
+  const isActive = currentField === field;
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        const newDir = isActive && currentDir === 'asc' ? 'desc' : 'asc';
+        onSort(field, newDir);
+      }}
+      className={`flex w-full items-center gap-1 transition hover:text-brand-500 dark:hover:text-brand-400 ${
+        align === 'left' ? 'justify-start' : 'justify-center'
+      } ${isActive ? 'text-brand-600 dark:text-brand-400' : 'text-inherit'}`}
+    >
+      {label}
+      {isActive && (
+        <span className="text-[10px]" aria-hidden>
+          {currentDir === 'asc' ? '↑' : '↓'}
+        </span>
+      )}
+    </button>
+  );
+}
+
 // ── Section component (reusable for date buckets and needs-testing) ──
 
 function TaskSection({
@@ -195,6 +234,9 @@ function TaskSection({
   collapsed,
   onToggle,
   renderRow,
+  sortField,
+  sortDir,
+  onSortChange,
 }: {
   label: string;
   color: string;
@@ -202,6 +244,9 @@ function TaskSection({
   collapsed: boolean;
   onToggle: () => void;
   renderRow: (task: TaskWithProject) => React.ReactNode;
+  sortField: SortField;
+  sortDir: SortDir;
+  onSortChange: (field: SortField, dir: SortDir) => void;
 }) {
   if (tasks.length === 0) return null;
 
@@ -209,7 +254,7 @@ function TaskSection({
     <div className="mb-5">
       <button
         onClick={onToggle}
-        className="group mb-1 flex items-center gap-2 rounded px-1 py-1 transition hover:bg-gray-100"
+        className="group mb-1 flex items-center gap-2 rounded px-1 py-1 transition hover:bg-gray-100 dark:hover:bg-zinc-800"
       >
         <svg
           width="16"
@@ -230,24 +275,73 @@ function TaskSection({
         <span className="text-[15px] font-bold" style={{ color }}>
           {label}
         </span>
-        <span className="text-xs text-txt-secondary">
+        <span className="text-xs text-txt-secondary dark:text-zinc-400">
           {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
         </span>
       </button>
 
       {!collapsed && (
-        <div className="overflow-hidden rounded-lg border border-monday-border bg-white">
+        <div className="overflow-hidden rounded-lg border border-monday-border bg-white dark:border-zinc-600 dark:bg-zinc-800">
           <div style={{ borderLeft: `5px solid ${color}` }}>
             <div
-              className={`grid ${COL_GRID} border-b border-monday-border bg-[#F7F7F9] text-[11px] font-semibold uppercase tracking-wider text-txt-secondary`}
+              className={`grid ${COL_GRID} border-b border-monday-border bg-[#F7F7F9] text-[11px] font-semibold uppercase tracking-wider text-txt-secondary dark:border-zinc-600 dark:bg-zinc-700/80 dark:text-zinc-300`}
             >
-              <div className="px-4 py-2.5">Task</div>
-              <div className="border-l border-monday-border px-2 py-2.5 text-center">Project</div>
-              <div className="border-l border-monday-border px-2 py-2.5 text-center">Owner</div>
-              <div className="border-l border-monday-border px-2 py-2.5 text-center">Status</div>
-              <div className="border-l border-monday-border px-2 py-2.5 text-center">Due Date</div>
-              <div className="border-l border-monday-border px-2 py-2.5 text-center">Priority</div>
-              <div className="border-l border-monday-border px-2 py-2.5 text-center">Notes</div>
+              <div className="px-4 py-2.5">
+                <SortableHeader
+                  field="title"
+                  label="Task"
+                  currentField={sortField}
+                  currentDir={sortDir}
+                  onSort={onSortChange}
+                  align="left"
+                />
+              </div>
+              <div className="border-l border-monday-border px-2 py-2.5">
+                <SortableHeader
+                  field="project_name"
+                  label="Project"
+                  currentField={sortField}
+                  currentDir={sortDir}
+                  onSort={onSortChange}
+                />
+              </div>
+              <div className="border-l border-monday-border px-2 py-2.5">
+                <SortableHeader
+                  field="assignee_user_id"
+                  label="Owner"
+                  currentField={sortField}
+                  currentDir={sortDir}
+                  onSort={onSortChange}
+                />
+              </div>
+              <div className="border-l border-monday-border px-2 py-2.5">
+                <SortableHeader
+                  field="status"
+                  label="Status"
+                  currentField={sortField}
+                  currentDir={sortDir}
+                  onSort={onSortChange}
+                />
+              </div>
+              <div className="border-l border-monday-border px-2 py-2.5">
+                <SortableHeader
+                  field="due_date"
+                  label="Due Date"
+                  currentField={sortField}
+                  currentDir={sortDir}
+                  onSort={onSortChange}
+                />
+              </div>
+              <div className="border-l border-monday-border px-2 py-2.5">
+                <SortableHeader
+                  field="priority"
+                  label="Priority"
+                  currentField={sortField}
+                  currentDir={sortDir}
+                  onSort={onSortChange}
+                />
+              </div>
+              <div className="border-l border-monday-border px-2 py-2.5 text-center dark:border-zinc-600">Notes</div>
             </div>
             {tasks.map((task) => renderRow(task))}
           </div>
@@ -315,6 +409,25 @@ export function MyTasksClient({
           cmp = aDate - bDate;
           break;
         }
+        case 'status': {
+          const STATUS_ORDER: Record<TaskStatus, number> = {
+            backlog: 0,
+            in_progress: 1,
+            needs_testing: 2,
+            done: 3,
+          };
+          cmp = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
+          break;
+        }
+        case 'assignee_user_id': {
+          const aVal = a.assignee_user_id ?? '';
+          const bVal = b.assignee_user_id ?? '';
+          cmp = aVal.localeCompare(bVal);
+          break;
+        }
+        case 'project_name':
+          cmp = (a.project_name ?? '').localeCompare(b.project_name ?? '');
+          break;
         case 'created_at':
           cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
           break;
@@ -499,6 +612,12 @@ export function MyTasksClient({
                 collapsed={collapsedSections.has('needs_testing')}
                 onToggle={() => toggleSection('needs_testing')}
                 renderRow={renderRow}
+                sortField={sortField}
+                sortDir={sortDir}
+                onSortChange={(field, dir) => {
+                  setSortField(field);
+                  setSortDir(dir);
+                }}
               />
 
               {/* Date-based buckets */}
@@ -513,6 +632,12 @@ export function MyTasksClient({
                     collapsed={collapsedSections.has(bucket.key)}
                     onToggle={() => toggleSection(bucket.key)}
                     renderRow={renderRow}
+                    sortField={sortField}
+                    sortDir={sortDir}
+                    onSortChange={(field, dir) => {
+                      setSortField(field);
+                      setSortDir(dir);
+                    }}
                   />
                 );
               })}
@@ -526,6 +651,12 @@ export function MyTasksClient({
                   collapsed={collapsedSections.has('done')}
                   onToggle={() => toggleSection('done')}
                   renderRow={renderRow}
+                  sortField={sortField}
+                  sortDir={sortDir}
+                  onSortChange={(field, dir) => {
+                    setSortField(field);
+                    setSortDir(dir);
+                  }}
                 />
               )}
             </div>
@@ -534,11 +665,12 @@ export function MyTasksClient({
       )}
 
       {editTask && (
-        <TaskDetailModal
+        <TaskDetailDrawer
           task={editTask}
           onClose={() => setEditTask(null)}
           onUpdate={(updates) => handleUpdate(editTask.id, updates)}
           onDelete={() => handleDelete(editTask.id)}
+          orgMembers={orgMembers}
         />
       )}
     </div>

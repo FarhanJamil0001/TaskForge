@@ -82,8 +82,8 @@ function FormatButton({
       title={title}
       className={`rounded p-1.5 transition ${
         active
-          ? 'bg-brand-500/20 text-brand-600'
-          : 'text-txt-secondary hover:bg-gray-200 hover:text-txt-primary'
+          ? 'bg-brand-500/20 text-brand-600 dark:bg-brand-500/30 dark:text-brand-400'
+          : 'text-txt-secondary hover:bg-gray-200 hover:text-txt-primary dark:text-zinc-400 dark:hover:bg-zinc-600 dark:hover:text-zinc-100'
       }`}
     >
       {children}
@@ -296,7 +296,7 @@ export function CollaborativeDocumentEditor({
     editorProps: {
       attributes: {
         class:
-          'min-h-[300px] px-4 py-3 focus:outline-none [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:text-lg [&_h3]:medium [&_ul]:list-disc [&_ul]:pl-6 [&_ul_ul]:list-[circle] [&_ol]:list-decimal [&_ol]:pl-6 [&_ol_ol]:list-[lower-alpha] [&_p]:mb-2',
+          'min-h-[300px] px-4 py-3 focus:outline-none text-txt-primary dark:text-zinc-100 [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:text-lg [&_h3]:medium [&_ul]:list-disc [&_ul]:pl-6 [&_ul_ul]:list-[circle] [&_ol]:list-decimal [&_ol]:pl-6 [&_ol_ol]:list-[lower-alpha] [&_p]:mb-2',
       },
     },
   });
@@ -399,8 +399,8 @@ export function CollaborativeDocumentEditor({
   if (!editor) return null;
 
   return (
-    <div className="rounded-lg border border-monday-border bg-white">
-      <div className="flex flex-wrap items-center gap-1 border-b border-monday-border px-4 py-2">
+    <div className="rounded-lg border border-monday-border bg-white dark:border-zinc-700 dark:bg-zinc-800">
+      <div className="flex flex-wrap items-center gap-1 border-b border-monday-border px-4 py-2 dark:border-zinc-600">
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -411,7 +411,7 @@ export function CollaborativeDocumentEditor({
               (e.target as HTMLInputElement).blur();
             }
           }}
-          className="min-w-0 flex-1 bg-transparent text-lg font-semibold text-txt-primary focus:outline-none"
+          className="min-w-0 flex-1 bg-transparent text-lg font-semibold text-txt-primary focus:outline-none dark:text-zinc-100"
           placeholder="Untitled"
         />
         <div className="flex items-center gap-2">

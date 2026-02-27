@@ -71,15 +71,15 @@ export function Sidebar({
   const activeProjectId = pathname.match(/^\/projects\/([^/]+)/)?.[1] ?? null;
 
   return (
-    <aside className="hidden w-[250px] shrink-0 flex-col bg-sidebar md:flex">
+    <aside className="hidden w-[250px] shrink-0 flex-col bg-sidebar dark:bg-zinc-950 md:flex">
       {/* Logo */}
-      <div className="flex h-14 items-center gap-2.5 border-b border-white/10 px-4">
+      <div className="flex h-14 items-center gap-2.5 border-b border-white/10 px-4 dark:border-zinc-800">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500 text-sm font-bold text-white">
           T
         </div>
         <div className="flex flex-col">
           <span className="text-sm font-semibold text-white">TaskForge</span>
-          <span className="text-[10px] text-gray-400">
+          <span className="text-[10px] text-gray-400 dark:text-zinc-500">
             {orgName ?? 'work management'}
           </span>
         </div>
@@ -119,12 +119,12 @@ export function Sidebar({
       {/* Projects section */}
       <div className="mt-4 flex flex-1 flex-col overflow-hidden px-2.5">
         <div className="flex items-center justify-between px-3 pb-2">
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-500 dark:text-zinc-500">
             Projects
           </span>
           <button
             onClick={() => setAdding(true)}
-            className="flex h-5 w-5 items-center justify-center rounded text-gray-500 transition hover:bg-sidebar-hover hover:text-white"
+            className="flex h-5 w-5 items-center justify-center rounded text-gray-500 transition hover:bg-sidebar-hover hover:text-white dark:text-zinc-500 dark:hover:bg-zinc-800"
             title="New project"
           >
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="stroke-current">
@@ -187,7 +187,7 @@ export function Sidebar({
           {projects.length === 0 && !adding && (
             <button
               onClick={() => setAdding(true)}
-              className="flex w-full items-center gap-2 px-3 py-2 text-[13px] text-gray-500 transition hover:text-gray-300"
+              className="flex w-full items-center gap-2 px-3 py-2 text-[13px] text-gray-500 transition hover:text-gray-300 dark:text-zinc-500 dark:hover:text-zinc-400"
             >
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="stroke-current">
                 <path d="M7 1v12M1 7h12" strokeWidth="1.5" strokeLinecap="round" />
@@ -199,7 +199,7 @@ export function Sidebar({
       </div>
 
       {/* Bottom */}
-      <div className="space-y-0.5 border-t border-white/10 p-3">
+      <div className="space-y-0.5 border-t border-white/10 p-3 dark:border-zinc-800">
         {orgId && (
           <Link
             href={`/orgs/${orgId}/members`}

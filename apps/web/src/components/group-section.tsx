@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import type { Task, TaskStatus, TaskPriority } from '@taskforge/shared';
+import type { SortField, SortDir } from './board-toolbar';
 import { StatusPill } from './status-pill';
 import { PriorityPill } from './priority-pill';
 import { EditableOwnerCell } from './editable-owner-cell';
@@ -43,6 +44,48 @@ interface GroupSectionProps {
   orgMembers: OrgMember[];
   hideHeader?: boolean;
   droppableId?: string;
+  sortField?: SortField;
+  sortDir?: SortDir;
+  onSortChange?: (field: SortField, dir: SortDir) => void;
+}
+
+function SortableHeader({
+  field,
+  label,
+  currentField,
+  currentDir,
+  onSort,
+}: {
+  field: SortField | null;
+  label: string;
+  currentField?: SortField;
+  currentDir?: SortDir;
+  onSort?: (field: SortField, dir: SortDir) => void;
+}) {
+  if (field === null || !onSort) {
+    return <div>{label}</div>;
+  }
+  const isActive = currentField === field;
+  const isTaskColumn = field === 'title';
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        const newDir = isActive && currentDir === 'asc' ? 'desc' : 'asc';
+        onSort(field, newDir);
+      }}
+      className={`flex w-full items-center gap-1 transition hover:text-brand-500 ${
+        isTaskColumn ? 'justify-start' : 'justify-center'
+      } ${isActive ? 'text-brand-600' : ''}`}
+    >
+      {label}
+      {isActive && (
+        <span className="text-[10px]" aria-hidden>
+          {currentDir === 'asc' ? '↑' : '↓'}
+        </span>
+      )}
+    </button>
+  );
 }
 
 const COL_GRID = 'grid-cols-[minmax(280px,2.5fr)_90px_140px_120px_110px_minmax(120px,1.5fr)]';
@@ -52,11 +95,13 @@ export function EditableTitleCell({
   onTaskClick,
   onTitleChange,
   GripIcon,
+  dragHandleProps,
 }: {
   task: Task;
   onTaskClick: (task: Task) => void;
   onTitleChange: (taskId: string, title: string) => void;
   GripIcon: () => JSX.Element;
+  dragHandleProps?: { attributes: object; listeners: object | undefined };
 }) {
   const [editing, setEditing] = useState(false);
   const [localTitle, setLocalTitle] = useState(task.title);
@@ -90,10 +135,24 @@ export function EditableTitleCell({
   }
 
   return (
-    <div className="flex min-w-0 items-center px-2 py-2 font-medium text-txt-primary">
-      <div className="mr-1.5 shrink-0 rounded p-1 text-gray-300 opacity-0 transition group-hover/row:opacity-100">
-        <GripIcon />
-      </div>
+    <div className="flex min-w-0 items-center px-2 py-2 font-medium text-txt-primary dark:text-zinc-100">
+      {dragHandleProps ? (
+        <div
+          {...dragHandleProps.attributes}
+          {...dragHandleProps.listeners}
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="mr-1.5 flex shrink-0 cursor-grab touch-none select-none rounded p-1 text-gray-300 opacity-0 transition hover:bg-gray-100 hover:text-txt-primary active:cursor-grabbing group-hover/row:opacity-100 dark:text-zinc-500 dark:hover:bg-zinc-700"
+          title="Drag to move"
+          aria-label="Drag to reorder"
+        >
+          <GripIcon />
+        </div>
+      ) : (
+        <div className="mr-1.5 shrink-0 rounded p-1 text-gray-300 opacity-0 transition group-hover/row:opacity-100 dark:text-zinc-500">
+          <GripIcon />
+        </div>
+      )}
       <button
         type="button"
         onClick={(e) => {
@@ -101,7 +160,7 @@ export function EditableTitleCell({
           onTaskClick(task);
         }}
         onPointerDown={(e) => e.stopPropagation()}
-        className="mr-1.5 flex-shrink-0 rounded p-0.5 text-gray-400 opacity-0 transition hover:text-brand-500 group-hover/row:opacity-100"
+        className="mr-1.5 flex-shrink-0 rounded p-0.5 text-gray-400 opacity-0 transition hover:text-brand-500 group-hover/row:opacity-100 dark:text-zinc-500"
         title="Open task details"
         aria-label="Open task details"
       >
@@ -141,7 +200,7 @@ export function EditableTitleCell({
           </>
         ) : (
           <span
-            className="inline-block max-w-full cursor-pointer truncate transition-colors hover:text-brand-500"
+            className="inline-block max-w-full cursor-pointer truncate transition-colors hover:text-brand-500 dark:hover:text-brand-400"
             onClick={(e) => {
               e.stopPropagation();
               setEditing(true);
@@ -203,9 +262,8 @@ function DraggableTaskRow({
   return (
     <div
       ref={setNodeRef}
-      {...(listeners as object)}
-      {...(attributes as object)}
-      className={`group/row grid cursor-grab ${COL_GRID} border-b border-monday-border text-sm transition-colors last:border-b-0 hover:bg-[#F5F6F8] active:cursor-grabbing ${
+      onClick={() => onTaskClick(task)}
+      className={`group/row grid cursor-pointer ${COL_GRID} border-b border-monday-border text-sm transition-colors last:border-b-0 hover:bg-[#F5F6F8] dark:border-zinc-600 dark:hover:bg-zinc-700/50 ${
         isDragging ? 'opacity-30' : ''
       }`}
     >
@@ -215,10 +273,14 @@ function DraggableTaskRow({
         onTaskClick={onTaskClick}
         onTitleChange={onTitleChange}
         GripIcon={GripIcon}
+        dragHandleProps={{ attributes, listeners: listeners ?? {} }}
       />
 
       {/* Owner */}
-      <div className="flex items-center border-l border-monday-border py-1">
+      <div
+        className="flex items-center border-l border-monday-border py-1"
+        onClick={(e) => e.stopPropagation()}
+      >
         <EditableOwnerCell
           assigneeUserId={task.assignee_user_id}
           orgMembers={orgMembers}
@@ -227,12 +289,18 @@ function DraggableTaskRow({
       </div>
 
       {/* Status */}
-      <div className="flex items-center border-l border-monday-border p-1">
+      <div
+        className="flex items-center border-l border-monday-border p-1"
+        onClick={(e) => e.stopPropagation()}
+      >
         <StatusPill status={task.status} onChange={(s) => onStatusChange(task.id, s)} />
       </div>
 
       {/* Due date */}
-      <div className="flex items-center border-l border-monday-border px-2 py-1">
+      <div
+        className="flex items-center border-l border-monday-border px-2 py-1"
+        onClick={(e) => e.stopPropagation()}
+      >
         <EditableDueDateCell
           dueDate={task.due_date}
           onChange={(date) => onDueDateChange(task.id, date)}
@@ -240,7 +308,10 @@ function DraggableTaskRow({
       </div>
 
       {/* Priority */}
-      <div className="flex items-center border-l border-monday-border p-1">
+      <div
+        className="flex items-center border-l border-monday-border p-1"
+        onClick={(e) => e.stopPropagation()}
+      >
         <PriorityPill
           priority={task.priority}
           onChange={(p) => onPriorityChange(task.id, p)}
@@ -248,7 +319,10 @@ function DraggableTaskRow({
       </div>
 
       {/* Notes */}
-      <div className="flex items-center border-l border-monday-border px-2 py-1">
+      <div
+        className="flex items-center border-l border-monday-border px-2 py-1"
+        onClick={(e) => e.stopPropagation()}
+      >
         <EditableNotesCell
           description={task.description}
           onChange={(desc) => onDescriptionChange(task.id, desc)}
@@ -278,6 +352,9 @@ export function GroupSection({
   orgMembers,
   hideHeader,
   droppableId,
+  sortField,
+  sortDir,
+  onSortChange,
 }: GroupSectionProps) {
   const [adding, setAdding] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -357,29 +434,69 @@ export function GroupSection({
 
       {!collapsed && (
         <div
-          className={`overflow-hidden rounded-lg border bg-white transition-shadow ${
+          className={`overflow-hidden rounded-lg border bg-white transition-shadow dark:bg-zinc-800 ${
             isOver
               ? 'border-brand-500 shadow-[0_0_0_1px_theme(colors.brand.500)]'
-              : 'border-monday-border'
+              : 'border-monday-border dark:border-zinc-700'
           }`}
         >
           {/* Left color bar via border */}
           <div style={{ borderLeft: `5px solid ${group.color}` }}>
             {/* Column headers */}
             <div
-              className={`grid ${COL_GRID} border-b border-monday-border bg-[#F7F7F9] text-[11px] font-semibold uppercase tracking-wider text-txt-secondary`}
+              className={`grid ${COL_GRID} border-b border-monday-border bg-[#F7F7F9] text-[11px] font-semibold uppercase tracking-wider text-txt-secondary dark:border-zinc-600 dark:bg-zinc-700/80 dark:text-zinc-300`}
             >
-              <div className="px-4 py-2.5">Task</div>
-              <div className="border-l border-monday-border px-2 py-2.5 text-center">Owner</div>
-              <div className="border-l border-monday-border px-2 py-2.5 text-center">Status</div>
-              <div className="border-l border-monday-border px-2 py-2.5 text-center">Due Date</div>
-              <div className="border-l border-monday-border px-2 py-2.5 text-center">Priority</div>
-              <div className="border-l border-monday-border px-2 py-2.5 text-center">Notes</div>
+              <div className="px-4 py-2.5">
+                <SortableHeader
+                  field="title"
+                  label="Task"
+                  currentField={sortField}
+                  currentDir={sortDir}
+                  onSort={onSortChange}
+                />
+              </div>
+              <div className="border-l border-monday-border px-2 py-2.5">
+                <SortableHeader
+                  field="assignee_user_id"
+                  label="Owner"
+                  currentField={sortField}
+                  currentDir={sortDir}
+                  onSort={onSortChange}
+                />
+              </div>
+              <div className="border-l border-monday-border px-2 py-2.5">
+                <SortableHeader
+                  field="status"
+                  label="Status"
+                  currentField={sortField}
+                  currentDir={sortDir}
+                  onSort={onSortChange}
+                />
+              </div>
+              <div className="border-l border-monday-border px-2 py-2.5">
+                <SortableHeader
+                  field="due_date"
+                  label="Due Date"
+                  currentField={sortField}
+                  currentDir={sortDir}
+                  onSort={onSortChange}
+                />
+              </div>
+              <div className="border-l border-monday-border px-2 py-2.5">
+                <SortableHeader
+                  field="priority"
+                  label="Priority"
+                  currentField={sortField}
+                  currentDir={sortDir}
+                  onSort={onSortChange}
+                />
+              </div>
+              <div className="border-l border-monday-border px-2 py-2.5 text-center dark:border-zinc-600">Notes</div>
             </div>
 
             {/* Add task row - at top so new tasks appear where you're typing */}
             <div
-              className={`grid ${COL_GRID} border-b border-monday-border text-sm`}
+              className={`grid ${COL_GRID} border-b border-monday-border text-sm dark:border-zinc-600`}
             >
               <div className="px-4 py-2">
                 {isAdding ? (

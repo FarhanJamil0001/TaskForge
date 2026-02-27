@@ -3,7 +3,14 @@
 import { useState, useRef, useEffect } from 'react';
 import type { TaskPriority } from '@taskforge/shared';
 
-export type SortField = 'title' | 'priority' | 'due_date' | 'created_at';
+export type SortField =
+  | 'title'
+  | 'priority'
+  | 'due_date'
+  | 'created_at'
+  | 'status'
+  | 'assignee_user_id'
+  | 'project_name';
 export type SortDir = 'asc' | 'desc';
 
 interface BoardToolbarProps {
@@ -20,6 +27,9 @@ interface BoardToolbarProps {
 const SORT_OPTIONS: { field: SortField; label: string }[] = [
   { field: 'created_at', label: 'Date created' },
   { field: 'title', label: 'Name' },
+  { field: 'project_name', label: 'Project' },
+  { field: 'status', label: 'Status' },
+  { field: 'assignee_user_id', label: 'Owner' },
   { field: 'due_date', label: 'Due date' },
   { field: 'priority', label: 'Priority' },
 ];
@@ -57,7 +67,7 @@ function DropdownMenu({
   return (
     <div
       ref={ref}
-      className="absolute right-0 top-full z-50 mt-1 min-w-[180px] rounded-lg border border-monday-border bg-white py-1 shadow-xl"
+      className="absolute right-0 top-full z-50 mt-1 min-w-[180px] rounded-lg border border-monday-border bg-white py-1 shadow-xl dark:border-zinc-600 dark:bg-zinc-800"
     >
       {children}
     </div>
@@ -106,7 +116,7 @@ export function BoardToolbar({
               value={search}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Search tasks..."
-              className="mr-1 h-[32px] w-[200px] rounded-md border border-monday-border bg-white px-3 text-sm text-txt-primary placeholder:text-txt-secondary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              className="mr-1 h-[32px] w-[200px] rounded-md border border-monday-border bg-white px-3 text-sm text-txt-primary placeholder:text-txt-secondary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder:text-zinc-500"
             />
           )}
           <button
@@ -116,8 +126,8 @@ export function BoardToolbar({
             }}
             className={`flex h-[32px] items-center gap-1.5 rounded-md px-2.5 text-sm transition ${
               showSearch
-                ? 'bg-brand-50 text-brand-500'
-                : 'text-txt-secondary hover:bg-gray-100'
+                ? 'bg-brand-50 text-brand-500 dark:bg-brand-500/20 dark:text-brand-400'
+                : 'text-txt-secondary hover:bg-gray-100 dark:text-zinc-400 dark:hover:bg-zinc-800'
             }`}
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="stroke-current">
@@ -137,8 +147,8 @@ export function BoardToolbar({
             }}
             className={`flex h-[32px] items-center gap-1.5 rounded-md px-2.5 text-sm transition ${
               sortField !== 'created_at'
-                ? 'bg-brand-50 text-brand-500'
-                : 'text-txt-secondary hover:bg-gray-100'
+                ? 'bg-brand-50 text-brand-500 dark:bg-brand-500/20 dark:text-brand-400'
+                : 'text-txt-secondary hover:bg-gray-100 dark:text-zinc-400 dark:hover:bg-zinc-800'
             }`}
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="stroke-current">
@@ -156,8 +166,8 @@ export function BoardToolbar({
                   onSortChange(opt.field, newDir);
                   setShowSort(false);
                 }}
-                className={`flex w-full items-center justify-between px-3 py-2 text-sm transition hover:bg-gray-50 ${
-                  sortField === opt.field ? 'text-brand-500' : 'text-txt-primary'
+                className={`flex w-full items-center justify-between px-3 py-2 text-sm transition hover:bg-gray-50 dark:hover:bg-zinc-700 ${
+                  sortField === opt.field ? 'text-brand-500 dark:text-brand-400' : 'text-txt-primary dark:text-zinc-100'
                 }`}
               >
                 {opt.label}
@@ -180,8 +190,8 @@ export function BoardToolbar({
             }}
             className={`flex h-[32px] items-center gap-1.5 rounded-md px-2.5 text-sm transition ${
               filterPriority !== 'all'
-                ? 'bg-brand-50 text-brand-500'
-                : 'text-txt-secondary hover:bg-gray-100'
+                ? 'bg-brand-50 text-brand-500 dark:bg-brand-500/20 dark:text-brand-400'
+                : 'text-txt-secondary hover:bg-gray-100 dark:text-zinc-400 dark:hover:bg-zinc-800'
             }`}
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="stroke-current">
@@ -197,8 +207,8 @@ export function BoardToolbar({
                   onFilterChange(opt.value);
                   setShowFilter(false);
                 }}
-                className={`flex w-full items-center px-3 py-2 text-sm transition hover:bg-gray-50 ${
-                  filterPriority === opt.value ? 'text-brand-500' : 'text-txt-primary'
+                className={`flex w-full items-center px-3 py-2 text-sm transition hover:bg-gray-50 dark:hover:bg-zinc-700 ${
+                  filterPriority === opt.value ? 'text-brand-500 dark:text-brand-400' : 'text-txt-primary dark:text-zinc-100'
                 }`}
               >
                 {opt.label}

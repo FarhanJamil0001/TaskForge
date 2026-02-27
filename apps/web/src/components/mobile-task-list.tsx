@@ -62,7 +62,7 @@ function TaskCard({
           onTaskClick(task);
         }
       }}
-      className="flex w-full cursor-pointer overflow-hidden rounded-xl border border-monday-border bg-white text-left shadow-sm transition active:scale-[0.99]"
+      className="flex w-full cursor-pointer overflow-hidden rounded-xl border border-monday-border bg-white text-left shadow-sm transition active:scale-[0.99] dark:border-zinc-600 dark:bg-zinc-800"
     >
       {/* Left accent bar */}
       <div
@@ -73,24 +73,24 @@ function TaskCard({
 
       <div className="min-w-0 flex-1 p-4">
         {/* Title & description */}
-        <p className="font-medium text-txt-primary line-clamp-2">{task.title}</p>
+        <p className="font-medium text-txt-primary line-clamp-2 dark:text-zinc-100">{task.title}</p>
         {task.description && (
-          <p className="mt-1 line-clamp-2 text-xs text-txt-secondary">{task.description}</p>
+          <p className="mt-1 line-clamp-2 text-xs text-txt-secondary dark:text-zinc-400">{task.description}</p>
         )}
 
         {/* Metadata row: Status | Priority | Due */}
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
           <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-            <span className="text-[10px] font-medium uppercase tracking-wider text-txt-secondary">Status</span>
+            <span className="text-[10px] font-medium uppercase tracking-wider text-txt-secondary dark:text-zinc-400">Status</span>
             <StatusPill status={task.status} onChange={(s) => onStatusChange(task.id, s)} />
           </div>
           <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-            <span className="text-[10px] font-medium uppercase tracking-wider text-txt-secondary">Priority</span>
+            <span className="text-[10px] font-medium uppercase tracking-wider text-txt-secondary dark:text-zinc-400">Priority</span>
             <PriorityPill priority={task.priority} onChange={(p) => onPriorityChange(task.id, p)} />
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] font-medium uppercase tracking-wider text-txt-secondary">Due</span>
-            <span className="text-xs text-txt-primary">
+            <span className="text-xs text-txt-primary dark:text-zinc-100">
               {task.due_date
                 ? new Date(task.due_date).toLocaleDateString(undefined, {
                     month: 'short',
@@ -103,10 +103,10 @@ function TaskCard({
 
         {/* Assignee row */}
         <div
-          className="mt-3 flex items-center gap-2 border-t border-monday-border pt-3"
+          className="mt-3 flex items-center gap-2 border-t border-monday-border pt-3 dark:border-zinc-600"
           onClick={(e) => e.stopPropagation()}
         >
-          <span className="shrink-0 text-[10px] font-medium uppercase tracking-wider text-txt-secondary">Assigned to</span>
+          <span className="shrink-0 text-[10px] font-medium uppercase tracking-wider text-txt-secondary dark:text-zinc-400">Assigned to</span>
           <div className="shrink-0">
             <EditableOwnerCell
               assigneeUserId={task.assignee_user_id}
@@ -134,14 +134,14 @@ export function MobileTaskList({
       {GROUPS.map((group) => {
         const groupTasks = tasks.filter((t) => t.status === group.status);
         return (
-          <section key={group.status} className="rounded-xl border border-monday-border bg-white p-4 shadow-sm">
+          <section key={group.status} className="rounded-xl border border-monday-border bg-white p-4 shadow-sm dark:border-zinc-600 dark:bg-zinc-800">
             <div className="mb-4 flex items-center gap-3">
               <div
                 className="h-3 w-1 shrink-0 rounded-full"
                 style={{ backgroundColor: group.color }}
               />
-              <h3 className="font-semibold text-txt-primary">{group.label}</h3>
-              <span className="ml-auto text-xs text-txt-secondary">
+              <h3 className="font-semibold text-txt-primary dark:text-zinc-100">{group.label}</h3>
+              <span className="ml-auto text-xs text-txt-secondary dark:text-zinc-400">
                 {groupTasks.length}
               </span>
             </div>
@@ -188,7 +188,7 @@ function AddTaskRow({
 
   if (adding) {
     return (
-      <div className="rounded-xl border border-dashed border-monday-border bg-gray-50/50 p-3">
+      <div className="rounded-xl border border-dashed border-monday-border bg-gray-50/50 p-3 dark:border-zinc-600 dark:bg-zinc-800/50">
         <input
           autoFocus
           value={title}
@@ -205,7 +205,7 @@ function AddTaskRow({
             setAdding(false);
           }}
           placeholder="Task title..."
-          className="w-full rounded-lg border border-monday-border bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+          className="w-full rounded-lg border border-monday-border bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
         />
       </div>
     );
@@ -215,7 +215,7 @@ function AddTaskRow({
     <button
       type="button"
       onClick={() => setAdding(true)}
-      className="flex w-full items-center gap-2 rounded-xl border border-dashed border-monday-border py-3 text-sm text-txt-secondary transition hover:border-brand-300 hover:text-brand-500"
+      className="flex w-full items-center gap-2 rounded-xl border border-dashed border-monday-border py-3 text-sm text-txt-secondary transition hover:border-brand-300 hover:text-brand-500 dark:border-zinc-600 dark:text-zinc-400 dark:hover:border-brand-500/50 dark:hover:text-brand-400"
     >
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="stroke-current">
         <path d="M8 3v10M4 9h8" strokeWidth="1.5" strokeLinecap="round" />

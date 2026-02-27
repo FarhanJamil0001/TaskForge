@@ -146,7 +146,7 @@ export function OrgsClient({
   return (
     <div className="mx-auto max-w-4xl">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Organizations</h1>
+        <h1 className="text-2xl font-bold text-txt-primary dark:text-zinc-100">Organizations</h1>
         <div className="flex gap-2">
           <button
             onClick={() => {
@@ -191,7 +191,7 @@ export function OrgsClient({
       {/* Join by code form */}
       {showJoinForm && (
         <form onSubmit={handleJoinByCode} className="card mb-6">
-          <p className="mb-3 text-sm text-gray-500">
+          <p className="mb-3 text-sm text-gray-500 dark:text-zinc-400">
             Enter the join code shared by an organization admin.
           </p>
           {joinError && <p className="mb-3 text-sm text-red-500">{joinError}</p>}
@@ -214,7 +214,7 @@ export function OrgsClient({
       {/* Pending invites */}
       {pendingInvites.length > 0 && (
         <div className="mb-6">
-          <h2 className="mb-3 text-sm font-semibold text-gray-500">
+          <h2 className="mb-3 text-sm font-semibold text-gray-500 dark:text-zinc-400">
             Pending Invitations
           </h2>
           {acceptError && (
@@ -224,13 +224,13 @@ export function OrgsClient({
             {pendingInvites.map((invite) => (
               <div
                 key={invite.id}
-                className="card flex items-center justify-between border-brand-500/30 bg-brand-50/30"
+                className="card flex items-center justify-between border-brand-500/30 bg-brand-50/30 dark:border-brand-500/40 dark:bg-brand-500/10"
               >
                 <div>
-                  <h3 className="font-semibold text-gray-800">
+                  <h3 className="font-semibold text-gray-800 dark:text-zinc-100">
                     {invite.organizations?.name ?? 'Unknown Organization'}
                   </h3>
-                  <p className="mt-0.5 text-xs text-gray-500">
+                  <p className="mt-0.5 text-xs text-gray-500 dark:text-zinc-400">
                     Invited as <span className="font-medium">{invite.role}</span>
                     {' · '}
                     {new Date(invite.created_at).toLocaleDateString()}
@@ -254,7 +254,7 @@ export function OrgsClient({
         <div className="card mb-6 border-brand-500">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 dark:text-zinc-400">
                 Connect code for <strong>{connectCodeOrg.name}</strong>
               </p>
               <p className="mt-1 font-mono text-2xl font-bold tracking-widest text-brand-600">
@@ -266,7 +266,7 @@ export function OrgsClient({
             </div>
             <button
               onClick={() => setConnectCodeOrg(null)}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 dark:text-zinc-500 dark:hover:text-zinc-300"
             >
               ✕
             </button>
@@ -307,9 +307,9 @@ export function OrgsClient({
               </form>
             ) : (
               <Link href={`/orgs/${org.id}/projects`} className="block">
-                <h3 className="font-semibold group-hover:text-brand-600">{org.name}</h3>
-                <p className="mt-1 font-mono text-xs text-gray-400">{org.id}</p>
-                <p className="mt-1 text-xs text-gray-400">
+                <h3 className="font-semibold group-hover:text-brand-600 dark:text-zinc-100 dark:group-hover:text-brand-400">{org.name}</h3>
+                <p className="mt-1 font-mono text-xs text-gray-400 dark:text-zinc-500">{org.id}</p>
+                <p className="mt-1 text-xs text-gray-400 dark:text-zinc-500">
                   Created {new Date(org.created_at).toLocaleDateString()}
                 </p>
               </Link>
@@ -317,25 +317,25 @@ export function OrgsClient({
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 onClick={() => startEditing(org)}
-                className="text-xs text-brand-600 hover:underline"
+                className="text-xs text-brand-600 hover:underline dark:text-brand-400"
               >
                 Rename
               </button>
               <Link
                 href={`/orgs/${org.id}/members`}
-                className="text-xs text-brand-600 hover:underline"
+                className="text-xs text-brand-600 hover:underline dark:text-brand-400"
               >
                 Members
               </Link>
               <button
                 onClick={() => setConnectCodeOrg(org)}
-                className="text-xs text-brand-600 hover:underline"
+                className="text-xs text-brand-600 hover:underline dark:text-brand-400"
               >
                 Discord Code
               </button>
               <button
                 onClick={() => regenerateCode(org)}
-                className="text-xs text-gray-400 hover:underline"
+                className="text-xs text-gray-400 hover:underline dark:text-zinc-500 dark:hover:text-zinc-300"
               >
                 Regenerate
               </button>
@@ -345,7 +345,7 @@ export function OrgsClient({
       </div>
 
       {orgs.length === 0 && pendingInvites.length === 0 && !showForm && !showJoinForm && (
-        <div className="card text-center text-gray-400">
+        <div className="card text-center text-gray-400 dark:text-zinc-500">
           No organizations yet. Create one or join an existing one to get started.
         </div>
       )}

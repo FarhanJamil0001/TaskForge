@@ -36,7 +36,7 @@ export function BoardViewClient({
   return (
     <div>
       {/* Breadcrumb */}
-      <div className="mb-1 flex items-center gap-1.5 text-[13px] text-txt-secondary">
+        <div className="mb-1 flex items-center gap-1.5 text-[13px] text-txt-secondary dark:text-zinc-400">
         <span>{orgName}</span>
         <svg
           width="12"
@@ -58,7 +58,7 @@ export function BoardViewClient({
       {/* Header */}
       <div className="mb-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-[22px] font-bold text-txt-primary">{boardName}</h1>
+          <h1 className="text-[22px] font-bold text-txt-primary dark:text-zinc-100">{boardName}</h1>
           <DiscordPanel
             orgId={orgId}
             orgName={orgName}
@@ -68,13 +68,13 @@ export function BoardViewClient({
           />
         </div>
         {/* View tabs */}
-        <div className="mt-3 flex items-center gap-0.5 border-b border-monday-border">
+        <div className="mt-3 flex items-center gap-0.5 border-b border-monday-border dark:border-zinc-700">
           <button
             onClick={() => setTab('table')}
             className={`relative px-4 py-2 text-sm font-medium transition ${
               tab === 'table'
-                ? 'text-brand-500 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:rounded-full after:bg-brand-500 after:content-[""]'
-                : 'text-txt-secondary hover:text-txt-primary'
+                ? 'text-brand-500 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:rounded-full after:bg-brand-500 after:content-[""] dark:text-brand-400'
+                : 'text-txt-secondary hover:text-txt-primary dark:text-zinc-400 dark:hover:text-zinc-100'
             }`}
           >
             Main Table
@@ -83,8 +83,8 @@ export function BoardViewClient({
             onClick={() => setTab('documents')}
             className={`relative px-4 py-2 text-sm font-medium transition ${
               tab === 'documents'
-                ? 'text-brand-500 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:rounded-full after:bg-brand-500 after:content-[""]'
-                : 'text-txt-secondary hover:text-txt-primary'
+                ? 'text-brand-500 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:rounded-full after:bg-brand-500 after:content-[""] dark:text-brand-400'
+                : 'text-txt-secondary hover:text-txt-primary dark:text-zinc-400 dark:hover:text-zinc-100'
             }`}
           >
             Documents

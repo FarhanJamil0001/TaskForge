@@ -47,7 +47,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           firstName={(user.user_metadata as { first_name?: string })?.first_name}
           lastName={(user.user_metadata as { last_name?: string })?.last_name}
         />
-        <main className="flex-1 overflow-auto bg-surface px-4 py-4 pb-24 md:px-6 md:py-5 md:pb-5">{children}</main>
+        <main className="flex-1 overflow-auto bg-surface px-4 py-4 pb-24 dark:bg-zinc-900 md:px-6 md:py-5 md:pb-5">{children}</main>
         <MobileBottomNav orgId={orgId} projects={projectList} />
       </div>
     </div>

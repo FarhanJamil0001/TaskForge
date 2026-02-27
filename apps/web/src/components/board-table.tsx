@@ -23,7 +23,7 @@ import type { Task, TaskStatus, TaskPriority, BoardGroup } from '@taskforge/shar
 import { BoardToolbar, type SortField, type SortDir } from './board-toolbar';
 import { GroupSection, type GroupConfig } from './group-section';
 import { MobileTaskList } from './mobile-task-list';
-import { TaskDetailModal } from './task-detail-modal';
+import { TaskDetailDrawer } from './task-detail-drawer';
 
 const DEFAULT_GROUPS: GroupConfig[] = [
   { status: 'backlog', label: 'To-Do', color: '#784BD1' },
@@ -40,6 +40,13 @@ const PRIORITY_ORDER: Record<TaskPriority, number> = {
   high: 3,
   medium: 2,
   low: 1,
+};
+
+const STATUS_ORDER: Record<TaskStatus, number> = {
+  backlog: 0,
+  in_progress: 1,
+  needs_testing: 2,
+  done: 3,
 };
 
 interface OrgMember {
@@ -92,7 +99,7 @@ function AddGroupButton({ onAdd }: { onAdd: (name: string) => void }) {
   return (
     <button
       onClick={() => setEditing(true)}
-      className="mb-5 flex items-center gap-2 rounded-md px-3 py-2 text-sm text-txt-secondary transition hover:bg-gray-100 hover:text-brand-500"
+      className="mb-5 flex items-center gap-2 rounded-md px-3 py-2 text-sm text-txt-secondary transition hover:bg-gray-100 hover:text-brand-500 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-brand-400"
     >
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="stroke-current">
         <path d="M7 1v12M1 7h12" strokeWidth="2" strokeLinecap="round" />
@@ -196,10 +203,44 @@ function CustomGroupHeader({
             {group.name}
           </span>
         )}
-        <span className="text-xs text-txt-secondary">
-          {taskCount} {taskCount === 1 ? 'task' : 'tasks'}
-        </span>
       </button>
+
+      {/* Pencil icon near name – edit/delete, shown on hover */}
+      <div className="relative">
+        <button
+          onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
+          className="flex h-6 w-6 items-center justify-center rounded text-gray-400 opacity-0 transition hover:bg-gray-200 hover:text-txt-primary group-hover:opacity-100"
+          title="Edit or delete group"
+          aria-label="Edit or delete group"
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="stroke-current">
+            <path d="M7 2l3 3-6 6H1V9l6-7z" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        {showMenu && (
+          <div
+            ref={menuRef}
+            className="absolute left-0 top-full z-50 mt-1 min-w-[140px] rounded-lg border border-monday-border bg-white py-1 shadow-xl dark:bg-zinc-800 dark:border-zinc-600"
+          >
+            <button
+              onClick={() => { setEditing(true); setShowMenu(false); }}
+              className="flex w-full items-center px-3 py-2 text-sm text-txt-primary transition hover:bg-gray-50 dark:hover:bg-zinc-700"
+            >
+              Rename
+            </button>
+            <button
+              onClick={() => { onDelete(); setShowMenu(false); }}
+              className="flex w-full items-center px-3 py-2 text-sm text-status-red transition hover:bg-red-50 dark:hover:bg-red-900/20"
+            >
+              Delete group
+            </button>
+          </div>
+        )}
+      </div>
+
+      <span className="text-xs text-txt-secondary">
+        {taskCount} {taskCount === 1 ? 'task' : 'tasks'}
+      </span>
 
       {!collapsed && (
         <button
@@ -212,39 +253,6 @@ function CustomGroupHeader({
           </svg>
         </button>
       )}
-
-      {/* Group actions menu */}
-      <div className="relative ml-auto">
-        <button
-          onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
-          className="flex h-6 w-6 items-center justify-center rounded text-gray-400 opacity-0 transition hover:bg-gray-200 hover:text-txt-primary group-hover:opacity-100"
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
-            <circle cx="7" cy="3" r="1.2" />
-            <circle cx="7" cy="7" r="1.2" />
-            <circle cx="7" cy="11" r="1.2" />
-          </svg>
-        </button>
-        {showMenu && (
-          <div
-            ref={menuRef}
-            className="absolute right-0 top-full z-50 mt-1 min-w-[140px] rounded-lg border border-monday-border bg-white py-1 shadow-xl"
-          >
-            <button
-              onClick={() => { setEditing(true); setShowMenu(false); }}
-              className="flex w-full items-center px-3 py-2 text-sm text-txt-primary transition hover:bg-gray-50"
-            >
-              Rename
-            </button>
-            <button
-              onClick={() => { onDelete(); setShowMenu(false); }}
-              className="flex w-full items-center px-3 py-2 text-sm text-status-red transition hover:bg-red-50"
-            >
-              Delete group
-            </button>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
@@ -273,6 +281,9 @@ function SortableGroupItem({
   handleTitleChange,
   handleInlineAdd,
   orgMembers,
+  sortField,
+  sortDir,
+  onSortChange,
 }: {
   group: BoardGroup;
   groupTasks: Task[];
@@ -293,6 +304,9 @@ function SortableGroupItem({
   handleTitleChange: (taskId: string, title: string) => void;
   handleInlineAdd: (title: string, status: import('@taskforge/shared').TaskStatus, groupId?: string) => void;
   orgMembers: OrgMember[];
+  sortField: SortField;
+  sortDir: SortDir;
+  onSortChange: (field: SortField, dir: SortDir) => void;
 }) {
   const sortableId = `${GROUP_ID_PREFIX}${group.id}`;
   const {
@@ -340,6 +354,9 @@ function SortableGroupItem({
           orgMembers={orgMembers}
           hideHeader
           droppableId={group.id}
+          sortField={sortField}
+          sortDir={sortDir}
+          onSortChange={onSortChange}
         />
       )}
     </div>
@@ -611,6 +628,18 @@ export function BoardTable({
           cmp = aDate - bDate;
           break;
         }
+        case 'status':
+          cmp = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
+          break;
+        case 'assignee_user_id': {
+          const aVal = a.assignee_user_id ?? '';
+          const bVal = b.assignee_user_id ?? '';
+          cmp = aVal.localeCompare(bVal);
+          break;
+        }
+        case 'project_name':
+          cmp = 0;
+          break;
         case 'created_at':
           cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
           break;
@@ -835,6 +864,12 @@ export function BoardTable({
             onAddTaskDone={() => setAddingGroup(null)}
             forceAdding={addingGroup === 'backlog'}
             orgMembers={orgMembers}
+            sortField={sortField}
+            sortDir={sortDir}
+            onSortChange={(field, dir) => {
+              setSortField(field);
+              setSortDir(dir);
+            }}
           />
 
           {/* Custom groups (sortable, always in the middle) */}
@@ -864,6 +899,12 @@ export function BoardTable({
                 handleTitleChange={handleTitleChange}
                 handleInlineAdd={handleInlineAdd}
                 orgMembers={orgMembers}
+                sortField={sortField}
+                sortDir={sortDir}
+                onSortChange={(field, dir) => {
+                  setSortField(field);
+                  setSortDir(dir);
+                }}
               />
             ))}
           </SortableContext>
@@ -885,16 +926,22 @@ export function BoardTable({
             onAddTaskDone={() => setAddingGroup(null)}
             forceAdding={addingGroup === 'done'}
             orgMembers={orgMembers}
+            sortField={sortField}
+            sortDir={sortDir}
+            onSortChange={(field, dir) => {
+              setSortField(field);
+              setSortDir(dir);
+            }}
           />
 
           <AddGroupButton onAdd={handleAddCustomGroup} />
         </div>
         <DragOverlay dropAnimation={null}>
           {activeTask ? (
-            <div className="w-80 rotate-2 rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
-              <p className="text-sm font-medium text-gray-800">{activeTask.title}</p>
+          <div className="w-80 rotate-2 rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-zinc-600 dark:bg-zinc-800">
+            <p className="text-sm font-medium text-gray-800 dark:text-zinc-100">{activeTask.title}</p>
               {activeTask.description && (
-                <p className="mt-1 line-clamp-1 text-xs text-gray-500">{activeTask.description}</p>
+                <p className="mt-1 line-clamp-1 text-xs text-gray-500 dark:text-zinc-400">{activeTask.description}</p>
               )}
               <div className="mt-2 flex items-center gap-2">
                 <span
@@ -903,7 +950,7 @@ export function BoardTable({
                   {activeTask.priority}
                 </span>
                 {activeTask.due_date && (
-                  <span className="text-[10px] text-gray-400">
+                  <span className="text-[10px] text-gray-400 dark:text-zinc-500">
                     Due {new Date(activeTask.due_date).toLocaleDateString()}
                   </span>
                 )}
@@ -914,7 +961,7 @@ export function BoardTable({
               const g = customGroups.find((x) => x.id === activeGroupId);
               if (!g) return null;
               return (
-                <div className="flex items-center gap-2 rounded-lg border border-monday-border bg-white px-4 py-2.5 shadow-lg">
+                <div className="flex items-center gap-2 rounded-lg border border-monday-border bg-white px-4 py-2.5 shadow-lg dark:border-zinc-600 dark:bg-zinc-800">
                   <div className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: g.color }} />
                   <span className="text-[15px] font-bold" style={{ color: g.color }}>
                     {g.name}
@@ -927,11 +974,33 @@ export function BoardTable({
       </DndContext>
 
       {editTask && (
-        <TaskDetailModal
+        <TaskDetailDrawer
           task={editTask}
           onClose={() => setEditTask(null)}
           onUpdate={(updates) => handleUpdateTask(editTask.id, updates)}
           onDelete={() => handleDeleteTask(editTask.id)}
+          onDuplicate={async () => {
+            const { data: newTask } = await supabase
+              .from('tasks')
+              .insert({
+                board_id: boardId,
+                title: `${editTask.title} (copy)`,
+                description: editTask.description,
+                status: editTask.status,
+                priority: editTask.priority,
+                assignee_user_id: editTask.assignee_user_id,
+                due_date: editTask.due_date,
+                group_id: editTask.group_id,
+                created_by: userId,
+              })
+              .select()
+              .single();
+            if (newTask) {
+              setTasks((prev) => [newTask, ...prev]);
+              setEditTask(newTask);
+            }
+          }}
+          orgMembers={orgMembers}
         />
       )}
     </div>

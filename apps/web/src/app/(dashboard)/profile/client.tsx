@@ -47,12 +47,12 @@ export function ProfileClient({
 
   return (
     <div className="mx-auto max-w-lg">
-      <h1 className="mb-6 text-2xl font-bold text-txt-primary">Profile</h1>
+      <h1 className="mb-6 text-2xl font-bold text-txt-primary dark:text-zinc-100">Profile</h1>
 
       <div className="card">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="email" className="mb-1 block text-sm font-medium text-gray-700">
+            <label htmlFor="email" className="mb-1 block text-sm font-medium text-gray-700 dark:text-zinc-200">
               Email
             </label>
             <input
@@ -60,7 +60,7 @@ export function ProfileClient({
               type="email"
               value={email}
               disabled
-              className="input cursor-not-allowed bg-gray-50"
+              className="input cursor-not-allowed bg-gray-50 dark:bg-zinc-800/80"
             />
             <p className="mt-1 text-xs text-txt-secondary">
               Email cannot be changed. Contact support if you need to update it.
@@ -69,7 +69,7 @@ export function ProfileClient({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="firstName" className="mb-1 block text-sm font-medium text-gray-700">
+              <label htmlFor="firstName" className="mb-1 block text-sm font-medium text-gray-700 dark:text-zinc-200">
                 First name
               </label>
               <input
@@ -82,7 +82,7 @@ export function ProfileClient({
               />
             </div>
             <div>
-              <label htmlFor="lastName" className="mb-1 block text-sm font-medium text-gray-700">
+              <label htmlFor="lastName" className="mb-1 block text-sm font-medium text-gray-700 dark:text-zinc-200">
                 Last name
               </label>
               <input
@@ -99,7 +99,7 @@ export function ProfileClient({
           {message && (
             <div
               className={`rounded-lg p-3 text-sm ${
-                message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-600'
+                message.type === 'success' ? 'bg-green-50 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-300'
               }`}
             >
               {message.text}

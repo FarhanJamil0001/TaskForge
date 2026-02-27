@@ -12,15 +12,15 @@ export default function AccessDeniedPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4 dark:from-zinc-900 dark:to-zinc-950">
       <div className="w-full max-w-md text-center">
         <div className="mb-6 flex justify-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-3xl">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-3xl dark:bg-amber-900/40">
             ⛔
           </div>
         </div>
-        <h1 className="text-2xl font-bold text-gray-900">Access Denied</h1>
-        <p className="mt-3 text-gray-600">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-zinc-100">Access Denied</h1>
+        <p className="mt-3 text-gray-600 dark:text-zinc-300">
           Your email is not authorized to access this application. If you believe this is an error,
           please contact your administrator to add your email to the allowlist.
         </p>
@@ -28,7 +28,7 @@ export default function AccessDeniedPage() {
           <button onClick={handleSignOut} className="btn-primary w-full">
             Sign Out
           </button>
-          <Link href="/auth" className="text-sm text-gray-500 hover:text-gray-700">
+          <Link href="/auth" className="text-sm text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200">
             Back to sign in
           </Link>
         </div>

@@ -27,7 +27,7 @@ function OwnerAvatar({
   if (!userId) {
     return (
       <div
-        className="flex items-center justify-center rounded-full border-2 border-dashed border-gray-300 text-gray-300"
+        className="flex items-center justify-center rounded-full border-2 border-dashed border-gray-300 text-gray-300 dark:border-zinc-600 dark:text-zinc-500"
         style={{ width: size, height: size }}
       >
         <svg width={size * 0.47} height={size * 0.47} viewBox="0 0 14 14" fill="none" className="stroke-current">
@@ -123,7 +123,7 @@ export function EditableOwnerCell({
           setOpen(!open);
         }}
         onPointerDown={(e) => e.stopPropagation()}
-        className="flex items-center justify-center rounded p-0.5 transition-colors hover:bg-gray-100"
+        className="flex items-center justify-center rounded p-0.5 transition-colors hover:bg-gray-100 dark:hover:bg-zinc-700/50"
       >
         <OwnerAvatar
           userId={assigneeUserId}
@@ -135,7 +135,7 @@ export function EditableOwnerCell({
         createPortal(
           <div
             ref={dropdownRef}
-            className="fixed z-[9999] max-h-[280px] overflow-y-auto rounded-lg border border-monday-border bg-white py-1 shadow-xl"
+            className="fixed z-[9999] max-h-[280px] overflow-y-auto rounded-lg border border-monday-border bg-white py-1 shadow-xl dark:border-zinc-600 dark:bg-zinc-800"
             style={{ top: pos.top, left: pos.left, width: DROPDOWN_W }}
           >
             <button
@@ -144,10 +144,10 @@ export function EditableOwnerCell({
                 onChange(null);
                 setOpen(false);
               }}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-txt-primary transition-colors hover:bg-gray-50"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-txt-primary transition-colors hover:bg-gray-50 dark:text-zinc-100 dark:hover:bg-zinc-700"
             >
               <OwnerAvatar userId={null} size={28} />
-              <span className="text-txt-secondary">Unassigned</span>
+              <span className="text-txt-secondary dark:text-zinc-400">Unassigned</span>
             </button>
             {orgMembers.map((m) => (
               <button
@@ -157,7 +157,7 @@ export function EditableOwnerCell({
                   onChange(m.user_id);
                   setOpen(false);
                 }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-txt-primary transition-colors hover:bg-gray-50"
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-txt-primary transition-colors hover:bg-gray-50 dark:text-zinc-100 dark:hover:bg-zinc-700"
               >
                 <OwnerAvatar
                   userId={m.user_id}
