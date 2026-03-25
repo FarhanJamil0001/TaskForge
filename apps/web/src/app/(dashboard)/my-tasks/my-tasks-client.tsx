@@ -15,6 +15,7 @@ import { EditableOwnerCell } from '@/components/editable-owner-cell';
 import { EditableDueDateCell } from '@/components/editable-due-date-cell';
 import { EditableNotesCell } from '@/components/editable-notes-cell';
 import { TaskDetailDrawer } from '@/components/task-detail-drawer';
+import { startOfLocalDayFromYmd } from '@/lib/local-calendar-date';
 
 interface TaskWithProject extends Task {
   project_id: string;
@@ -74,7 +75,9 @@ function getDateBucket(dueDateStr: string | null): DateBucket {
   const today = toDateOnly(new Date());
   const tomorrow = addDays(today, 1);
   const weekEnd = addDays(today, 7);
-  const due = toDateOnly(new Date(dueDateStr));
+  const dueRaw = startOfLocalDayFromYmd(dueDateStr);
+  if (Number.isNaN(dueRaw.getTime())) return 'no_date';
+  const due = toDateOnly(dueRaw);
 
   if (due < today) return 'overdue';
   if (due.getTime() === today.getTime()) return 'today';
@@ -404,8 +407,14 @@ export function MyTasksClient({
           cmp = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
           break;
         case 'due_date': {
-          const aDate = a.due_date ? new Date(a.due_date).getTime() : Infinity;
-          const bDate = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+          const aRaw = a.due_date
+            ? startOfLocalDayFromYmd(a.due_date).getTime()
+            : Infinity;
+          const bRaw = b.due_date
+            ? startOfLocalDayFromYmd(b.due_date).getTime()
+            : Infinity;
+          const aDate = Number.isNaN(aRaw) ? Infinity : aRaw;
+          const bDate = Number.isNaN(bRaw) ? Infinity : bRaw;
           cmp = aDate - bDate;
           break;
         }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type MouseEvent as ReactMouseEvent } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import type { Task, TaskStatus, TaskPriority } from '@taskforge/shared';
 import type { SortField, SortDir } from './board-toolbar';
@@ -26,6 +26,13 @@ interface OrgMember {
   created_at: string;
 }
 
+export interface TableSelection {
+  selectedIds: Set<string>;
+  onToggleTask: (taskId: string) => void;
+  onSelectAllInSection: (taskIds: string[], select: boolean) => void;
+  onRowContextMenu: (e: ReactMouseEvent, task: Task) => void;
+}
+
 interface GroupSectionProps {
   group: GroupConfig;
   tasks: Task[];
@@ -47,6 +54,7 @@ interface GroupSectionProps {
   sortField?: SortField;
   sortDir?: SortDir;
   onSortChange?: (field: SortField, dir: SortDir) => void;
+  selection?: TableSelection;
 }
 
 function SortableHeader({
@@ -89,6 +97,8 @@ function SortableHeader({
 }
 
 const COL_GRID = 'grid-cols-[minmax(280px,2.5fr)_90px_140px_120px_110px_minmax(120px,1.5fr)]';
+const COL_GRID_WITH_SELECT =
+  'grid-cols-[36px_minmax(280px,2.5fr)_90px_140px_120px_110px_minmax(120px,1.5fr)]';
 
 export function EditableTitleCell({
   task,
@@ -134,14 +144,22 @@ export function EditableTitleCell({
     setEditing(false);
   }
 
+  const gripListeners = dragHandleProps?.listeners as
+    | (Record<string, unknown> & { onPointerDown?: (e: React.PointerEvent) => void })
+    | undefined;
+  const { onPointerDown: gripOnPointerDown, ...gripRestListeners } = gripListeners ?? {};
+
   return (
     <div className="flex min-w-0 items-center px-2 py-2 font-medium text-txt-primary dark:text-zinc-100">
       {dragHandleProps ? (
         <div
           {...dragHandleProps.attributes}
-          {...dragHandleProps.listeners}
+          {...gripRestListeners}
           onClick={(e) => e.stopPropagation()}
-          onPointerDown={(e) => e.stopPropagation()}
+          onPointerDown={(e) => {
+            gripOnPointerDown?.(e);
+            e.stopPropagation();
+          }}
           className="mr-1.5 flex shrink-0 cursor-grab touch-none select-none rounded p-1 text-gray-300 opacity-0 transition hover:bg-gray-100 hover:text-txt-primary active:cursor-grabbing group-hover/row:opacity-100 dark:text-zinc-500 dark:hover:bg-zinc-700"
           title="Drag to move"
           aria-label="Drag to reorder"
@@ -233,6 +251,36 @@ export function GripIcon() {
   );
 }
 
+function SectionSelectAllCheckbox({
+  tasks,
+  selection,
+}: {
+  tasks: Task[];
+  selection: TableSelection;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  const ids = tasks.map((t) => t.id);
+  const selectedInSection = ids.filter((id) => selection.selectedIds.has(id));
+  const allSelected = ids.length > 0 && selectedInSection.length === ids.length;
+  const someSelected = selectedInSection.length > 0 && !allSelected;
+
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = someSelected;
+  }, [someSelected]);
+
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      checked={allSelected}
+      onChange={() => selection.onSelectAllInSection(ids, !allSelected)}
+      className="h-3.5 w-3.5 rounded border-monday-border text-brand-500 focus:ring-brand-500"
+      aria-label={allSelected ? 'Deselect all tasks in this section' : 'Select all tasks in this section'}
+      onClick={(e) => e.stopPropagation()}
+    />
+  );
+}
+
 function DraggableTaskRow({
   task,
   onTaskClick,
@@ -243,6 +291,7 @@ function DraggableTaskRow({
   onDescriptionChange,
   onTitleChange,
   orgMembers,
+  selection,
 }: {
   task: Task;
   onTaskClick: (task: Task) => void;
@@ -253,20 +302,47 @@ function DraggableTaskRow({
   onDescriptionChange: (taskId: string, description: string | null) => void;
   onTitleChange: (taskId: string, title: string) => void;
   orgMembers: OrgMember[];
+  selection?: TableSelection;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: task.id,
     data: { task },
   });
 
+  const isSelected = selection?.selectedIds.has(task.id) ?? false;
+
   return (
     <div
       ref={setNodeRef}
+      onClickCapture={(e) => {
+        if (selection && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault();
+          e.stopPropagation();
+          selection.onToggleTask(task.id);
+        }
+      }}
       onClick={() => onTaskClick(task)}
-      className={`group/row grid cursor-pointer ${COL_GRID} border-b border-monday-border text-sm transition-colors last:border-b-0 hover:bg-[#F5F6F8] dark:border-zinc-600 dark:hover:bg-zinc-700/50 ${
+      onContextMenu={(e) => selection?.onRowContextMenu(e, task)}
+      className={`group/row grid cursor-pointer ${
+        selection ? COL_GRID_WITH_SELECT : COL_GRID
+      } border-b border-monday-border text-sm transition-colors last:border-b-0 hover:bg-[#F5F6F8] dark:border-zinc-600 dark:hover:bg-zinc-700/50 ${
         isDragging ? 'opacity-30' : ''
-      }`}
+      } ${isSelected ? 'bg-brand-50/80 dark:bg-brand-950/25' : ''}`}
     >
+      {selection ? (
+        <div
+          className="flex items-center justify-center border-r border-monday-border dark:border-zinc-600"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => selection.onToggleTask(task.id)}
+            className="h-3.5 w-3.5 rounded border-monday-border text-brand-500 focus:ring-brand-500"
+            aria-label={`Select ${task.title}`}
+          />
+        </div>
+      ) : null}
       {/* Task title */}
       <EditableTitleCell
         task={task}
@@ -355,6 +431,7 @@ export function GroupSection({
   sortField,
   sortDir,
   onSortChange,
+  selection,
 }: GroupSectionProps) {
   const [adding, setAdding] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -444,8 +521,15 @@ export function GroupSection({
           <div style={{ borderLeft: `5px solid ${group.color}` }}>
             {/* Column headers */}
             <div
-              className={`grid ${COL_GRID} border-b border-monday-border bg-[#F7F7F9] text-[11px] font-semibold uppercase tracking-wider text-txt-secondary dark:border-zinc-600 dark:bg-zinc-700/80 dark:text-zinc-300`}
+              className={`grid ${
+                selection ? COL_GRID_WITH_SELECT : COL_GRID
+              } border-b border-monday-border bg-[#F7F7F9] text-[11px] font-semibold uppercase tracking-wider text-txt-secondary dark:border-zinc-600 dark:bg-zinc-700/80 dark:text-zinc-300`}
             >
+              {selection ? (
+                <div className="flex items-center justify-center border-r border-monday-border py-2.5 dark:border-zinc-600">
+                  <SectionSelectAllCheckbox tasks={tasks} selection={selection} />
+                </div>
+              ) : null}
               <div className="px-4 py-2.5">
                 <SortableHeader
                   field="title"
@@ -496,8 +580,11 @@ export function GroupSection({
 
             {/* Add task row - at top so new tasks appear where you're typing */}
             <div
-              className={`grid ${COL_GRID} border-b border-monday-border text-sm dark:border-zinc-600`}
+              className={`grid ${
+                selection ? COL_GRID_WITH_SELECT : COL_GRID
+              } border-b border-monday-border text-sm dark:border-zinc-600`}
             >
+              {selection ? <div className="border-r border-monday-border dark:border-zinc-600" /> : null}
               <div className="px-4 py-2">
                 {isAdding ? (
                   <input
@@ -544,6 +631,7 @@ export function GroupSection({
                 onDescriptionChange={onDescriptionChange}
                 onTitleChange={onTitleChange}
                 orgMembers={orgMembers}
+                selection={selection}
               />
             ))}
           </div>

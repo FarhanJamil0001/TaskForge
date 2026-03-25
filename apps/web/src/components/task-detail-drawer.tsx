@@ -4,16 +4,14 @@ import {
   useState,
   useEffect,
   useRef,
+  useCallback,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import Placeholder from '@tiptap/extension-placeholder';
-import Highlight from '@tiptap/extension-highlight';
-import { ListKeymap } from '@tiptap/extension-list';
-import type { Task, TaskStatus, TaskPriority } from '@taskforge/shared';
+import type { Task, TaskStatus, TaskPriority, AcceptanceCriterionItem } from '@taskforge/shared';
 import { StatusPill } from './status-pill';
 import { PriorityPill } from './priority-pill';
+import { TaskDescriptionEditor } from './task-description-editor';
+import { startOfLocalDayFromYmd } from '@/lib/local-calendar-date';
 
 interface OrgMember {
   id: string;
@@ -104,7 +102,9 @@ function formatRelativeDate(dateStr: string | null): string {
   if (!dateStr) return 'No due date';
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const due = new Date(dateStr + 'T00:00:00');
+  const due = startOfLocalDayFromYmd(dateStr);
+  if (Number.isNaN(due.getTime())) return 'No due date';
+  due.setHours(0, 0, 0, 0);
   const diff = Math.round(
     (due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
   );
@@ -124,7 +124,9 @@ function getDueDateColor(dateStr: string | null): string {
   if (!dateStr) return 'text-txt-secondary dark:text-zinc-400';
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const due = new Date(dateStr + 'T00:00:00');
+  const due = startOfLocalDayFromYmd(dateStr);
+  if (Number.isNaN(due.getTime())) return 'text-txt-secondary dark:text-zinc-400';
+  due.setHours(0, 0, 0, 0);
   const diff = Math.round(
     (due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
   );
@@ -227,153 +229,6 @@ function AssigneePicker({
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-// ── Description Editor (TipTap) ──
-
-function DescriptionEditor({
-  initialContent,
-  onSave,
-}: {
-  initialContent: string;
-  onSave: (content: string) => void;
-}) {
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastSavedRef = useRef(initialContent);
-
-  const editor = useEditor({
-    immediatelyRender: false,
-    extensions: [
-      StarterKit.configure({
-        heading: { levels: [1, 2, 3] },
-      }),
-      Placeholder.configure({
-        placeholder: 'What is this task about?',
-      }),
-      Highlight,
-      ListKeymap,
-    ],
-    content: initialContent || '',
-    editorProps: {
-      attributes: {
-        class:
-          'prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[120px] px-0 py-2',
-      },
-    },
-    onUpdate: ({ editor: ed }) => {
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = setTimeout(() => {
-        const html = ed.getHTML();
-        const isEmpty = ed.isEmpty;
-        const content = isEmpty ? '' : html;
-        if (content !== lastSavedRef.current) {
-          lastSavedRef.current = content;
-          onSave(content || null as unknown as string);
-        }
-      }, 800);
-    },
-  });
-
-  useEffect(() => {
-    return () => {
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    };
-  }, []);
-
-  if (!editor) return null;
-
-  return (
-    <div>
-      <div className="mb-2 flex flex-wrap gap-1 border-b border-monday-border pb-2 dark:border-zinc-600">
-        <button
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          className={`rounded px-2 py-1 text-xs font-medium transition ${
-            editor.isActive('bold')
-              ? 'bg-brand-50 text-brand-600 dark:bg-brand-500/20 dark:text-brand-400'
-              : 'text-txt-secondary hover:bg-gray-100 dark:text-zinc-400 dark:hover:bg-zinc-700'
-          }`}
-        >
-          B
-        </button>
-        <button
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          className={`rounded px-2 py-1 text-xs italic transition ${
-            editor.isActive('italic')
-              ? 'bg-brand-50 text-brand-600 dark:bg-brand-500/20 dark:text-brand-400'
-              : 'text-txt-secondary hover:bg-gray-100 dark:text-zinc-400 dark:hover:bg-zinc-700'
-          }`}
-        >
-          I
-        </button>
-        <button
-          onClick={() => editor.chain().focus().toggleStrike().run()}
-          className={`rounded px-2 py-1 text-xs line-through transition ${
-            editor.isActive('strike')
-              ? 'bg-brand-50 text-brand-600 dark:bg-brand-500/20 dark:text-brand-400'
-              : 'text-txt-secondary hover:bg-gray-100 dark:text-zinc-400 dark:hover:bg-zinc-700'
-          }`}
-        >
-          S
-        </button>
-        <div className="mx-1 w-px bg-monday-border dark:bg-zinc-600" />
-        <button
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          className={`rounded px-2 py-1 text-xs transition ${
-            editor.isActive('bulletList')
-              ? 'bg-brand-50 text-brand-600 dark:bg-brand-500/20 dark:text-brand-400'
-              : 'text-txt-secondary hover:bg-gray-100 dark:text-zinc-400 dark:hover:bg-zinc-700'
-          }`}
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="stroke-current">
-            <path d="M5 3h7M5 7h7M5 11h7" strokeWidth="1.5" strokeLinecap="round" />
-            <circle cx="2" cy="3" r="1" fill="currentColor" />
-            <circle cx="2" cy="7" r="1" fill="currentColor" />
-            <circle cx="2" cy="11" r="1" fill="currentColor" />
-          </svg>
-        </button>
-        <button
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          className={`rounded px-2 py-1 text-xs transition ${
-            editor.isActive('orderedList')
-              ? 'bg-brand-50 text-brand-600 dark:bg-brand-500/20 dark:text-brand-400'
-              : 'text-txt-secondary hover:bg-gray-100 dark:text-zinc-400 dark:hover:bg-zinc-700'
-          }`}
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="stroke-current">
-            <path d="M5 3h7M5 7h7M5 11h7" strokeWidth="1.5" strokeLinecap="round" />
-            <text x="0.5" y="5" fontSize="5" fill="currentColor" className="font-mono">1</text>
-            <text x="0.5" y="9" fontSize="5" fill="currentColor" className="font-mono">2</text>
-            <text x="0.5" y="13" fontSize="5" fill="currentColor" className="font-mono">3</text>
-          </svg>
-        </button>
-        <div className="mx-1 w-px bg-monday-border dark:bg-zinc-600" />
-        <button
-          onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-          className={`rounded px-2 py-1 text-xs font-bold transition ${
-            editor.isActive('heading', { level: 2 })
-              ? 'bg-brand-50 text-brand-600 dark:bg-brand-500/20 dark:text-brand-400'
-              : 'text-txt-secondary hover:bg-gray-100 dark:text-zinc-400 dark:hover:bg-zinc-700'
-          }`}
-        >
-          H2
-        </button>
-        <button
-          onClick={() => editor.chain().focus().toggleHighlight().run()}
-          className={`rounded px-2 py-1 text-xs transition ${
-            editor.isActive('highlight')
-              ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400'
-              : 'text-txt-secondary hover:bg-gray-100 dark:text-zinc-400 dark:hover:bg-zinc-700'
-          }`}
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <rect x="1" y="9" width="12" height="4" rx="1" fill="currentColor" opacity="0.3" />
-            <path d="M3 9V3a1 1 0 011-1h6a1 1 0 011 1v6" stroke="currentColor" strokeWidth="1.2" />
-          </svg>
-        </button>
-      </div>
-      <EditorContent editor={editor} />
     </div>
   );
 }
@@ -574,6 +429,208 @@ function ActivityItem({
       <div className="min-w-0 flex-1">
         <p className="text-sm text-txt-primary dark:text-zinc-200">{message}</p>
         <p className="mt-0.5 text-xs text-txt-secondary dark:text-zinc-500">{timeStr}</p>
+      </div>
+    </div>
+  );
+}
+
+// ── Acceptance Criteria Section ──
+
+function AcceptanceCriteriaSection({
+  items,
+  onChange,
+}: {
+  items: AcceptanceCriterionItem[];
+  onChange: (items: AcceptanceCriterionItem[]) => void;
+}) {
+  const [newText, setNewText] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [showInput, setShowInput] = useState(false);
+
+  const checkedCount = items.filter((i) => i.checked).length;
+
+  const handleAdd = useCallback(() => {
+    const trimmed = newText.trim();
+    if (!trimmed) return;
+    const item: AcceptanceCriterionItem = {
+      id: crypto.randomUUID(),
+      text: trimmed,
+      checked: false,
+    };
+    onChange([...items, item]);
+    setNewText('');
+  }, [newText, items, onChange]);
+
+  const handleToggle = useCallback(
+    (id: string) => {
+      onChange(items.map((i) => (i.id === id ? { ...i, checked: !i.checked } : i)));
+    },
+    [items, onChange],
+  );
+
+  const handleDelete = useCallback(
+    (id: string) => {
+      onChange(items.filter((i) => i.id !== id));
+    },
+    [items, onChange],
+  );
+
+  const handleEditStart = useCallback((item: AcceptanceCriterionItem) => {
+    setEditingId(item.id);
+    setEditingText(item.text);
+  }, []);
+
+  const handleEditSave = useCallback(() => {
+    if (!editingId) return;
+    const trimmed = editingText.trim();
+    if (trimmed) {
+      onChange(items.map((i) => (i.id === editingId ? { ...i, text: trimmed } : i)));
+    }
+    setEditingId(null);
+    setEditingText('');
+  }, [editingId, editingText, items, onChange]);
+
+  useEffect(() => {
+    if (showInput) {
+      inputRef.current?.focus();
+    }
+  }, [showInput]);
+
+  return (
+    <div className="mb-6">
+      <div className="mb-3 flex items-center gap-2">
+        <h3 className="text-xs font-medium uppercase tracking-wider text-txt-secondary dark:text-zinc-400">
+          Acceptance Criteria
+        </h3>
+        {items.length > 0 && (
+          <span className="rounded-full bg-brand-100 px-2 py-0.5 text-[10px] font-semibold text-brand-700 dark:bg-brand-900/40 dark:text-brand-300">
+            {checkedCount}/{items.length}
+          </span>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-monday-border dark:border-zinc-700">
+        {items.length > 0 && (
+          <ul className="divide-y divide-monday-border dark:divide-zinc-700">
+            {items.map((item) => (
+              <li
+                key={item.id}
+                className="group flex items-start gap-3 px-4 py-2.5 hover:bg-surface-hover dark:hover:bg-zinc-800/50"
+              >
+                <button
+                  type="button"
+                  onClick={() => handleToggle(item.id)}
+                  className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition ${
+                    item.checked
+                      ? 'border-brand-500 bg-brand-500 text-white'
+                      : 'border-monday-border dark:border-zinc-600'
+                  }`}
+                >
+                  {item.checked && (
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                      <path
+                        d="M2 5.5L4 7.5L8 3"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  )}
+                </button>
+
+                <div className="min-w-0 flex-1">
+                  {editingId === item.id ? (
+                    <input
+                      autoFocus
+                      className="w-full bg-transparent text-sm text-txt-primary outline-none dark:text-zinc-200"
+                      value={editingText}
+                      onChange={(e) => setEditingText(e.target.value)}
+                      onBlur={handleEditSave}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleEditSave();
+                        if (e.key === 'Escape') {
+                          setEditingId(null);
+                          setEditingText('');
+                        }
+                      }}
+                    />
+                  ) : (
+                    <span
+                      onClick={() => handleEditStart(item)}
+                      className={`cursor-text text-sm transition ${
+                        item.checked
+                          ? 'text-txt-secondary line-through dark:text-zinc-500'
+                          : 'text-txt-primary dark:text-zinc-200'
+                      }`}
+                    >
+                      {item.text}
+                    </span>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleDelete(item.id)}
+                  className="ml-auto mt-0.5 shrink-0 rounded p-0.5 text-txt-secondary opacity-0 transition hover:bg-red-100 hover:text-red-600 group-hover:opacity-100 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+                >
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <path
+                      d="M4 4L10 10M10 4L4 10"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {showInput ? (
+          <div className="flex items-center gap-2 px-4 py-2.5">
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Add a criterion..."
+              className="flex-1 bg-transparent text-sm text-txt-primary placeholder-txt-secondary outline-none dark:text-zinc-200 dark:placeholder-zinc-500"
+              value={newText}
+              onChange={(e) => setNewText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleAdd();
+                  inputRef.current?.focus();
+                }
+                if (e.key === 'Escape') {
+                  setNewText('');
+                  setShowInput(false);
+                }
+              }}
+              onBlur={() => {
+                if (!newText.trim()) setShowInput(false);
+              }}
+            />
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowInput(true)}
+            className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-txt-secondary transition hover:bg-surface-hover hover:text-txt-primary dark:text-zinc-400 dark:hover:bg-zinc-800/50 dark:hover:text-zinc-200"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path
+                d="M7 3V11M3 7H11"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+            Add criterion
+          </button>
+        )}
       </div>
     </div>
   );
@@ -910,14 +967,18 @@ export function TaskDetailDrawer({
                 Description
               </h3>
               <div className="rounded-lg border border-monday-border p-4 transition focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500 dark:border-zinc-700">
-                <DescriptionEditor
+                <TaskDescriptionEditor
                   initialContent={task.description ?? ''}
-                  onSave={(content) =>
-                    onUpdate({ description: content || null })
-                  }
+                  onDebouncedSave={(content) => onUpdate({ description: content })}
                 />
               </div>
             </div>
+
+            {/* ── Acceptance Criteria ── */}
+            <AcceptanceCriteriaSection
+              items={task.acceptance_criteria ?? []}
+              onChange={(items) => onUpdate({ acceptance_criteria: items } as Partial<Task>)}
+            />
 
             {/* Discord info */}
             {task.discord_message_url && (

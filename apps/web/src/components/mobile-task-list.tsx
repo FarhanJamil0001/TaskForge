@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import type { Task, TaskStatus, TaskPriority } from '@taskforge/shared';
+import { plainTextFromHtml } from '@/lib/plain-text-from-html';
+import { formatShortMonthDayFromYmd } from '@/lib/local-calendar-date';
 import { StatusPill } from './status-pill';
 import { PriorityPill } from './priority-pill';
 import { EditableOwnerCell } from './editable-owner-cell';
@@ -75,7 +77,9 @@ function TaskCard({
         {/* Title & description */}
         <p className="font-medium text-txt-primary line-clamp-2 dark:text-zinc-100">{task.title}</p>
         {task.description && (
-          <p className="mt-1 line-clamp-2 text-xs text-txt-secondary dark:text-zinc-400">{task.description}</p>
+          <p className="mt-1 line-clamp-2 text-xs text-txt-secondary dark:text-zinc-400">
+            {plainTextFromHtml(task.description)}
+          </p>
         )}
 
         {/* Metadata row: Status | Priority | Due */}
@@ -92,10 +96,7 @@ function TaskCard({
             <span className="text-[10px] font-medium uppercase tracking-wider text-txt-secondary">Due</span>
             <span className="text-xs text-txt-primary dark:text-zinc-100">
               {task.due_date
-                ? new Date(task.due_date).toLocaleDateString(undefined, {
-                    month: 'short',
-                    day: 'numeric',
-                  })
+                ? formatShortMonthDayFromYmd(task.due_date) || '—'
                 : '—'}
             </span>
           </div>

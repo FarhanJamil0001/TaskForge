@@ -30,6 +30,12 @@ export default async function BoardPage({
     return <div className="text-center text-txt-secondary">Board not found</div>;
   }
 
+  const { data: siblingBoardRows } = await supabase
+    .from('boards')
+    .select('id, name')
+    .eq('project_id', board.project_id)
+    .neq('id', boardId);
+
   const project = board.projects as {
     id: string;
     name: string;
@@ -57,6 +63,10 @@ export default async function BoardPage({
       initialDocs={
         (docs ?? []) as import('@/components/document-hub').ProjectDocument[]
       }
+      siblingBoards={(siblingBoardRows ?? []).map((b) => ({
+        id: b.id,
+        name: b.name,
+      }))}
     />
   );
 }

@@ -50,10 +50,17 @@ export const createBoardSchema = z.object({
   project_id: z.string().uuid(),
 });
 
+export const acceptanceCriterionItemSchema = z.object({
+  id: z.string().min(1),
+  text: z.string().min(1).max(1000),
+  checked: z.boolean(),
+});
+
 export const createTaskSchema = z.object({
   board_id: z.string().uuid(),
   title: z.string().min(1).max(500),
   description: z.string().max(4000).nullable().optional(),
+  acceptance_criteria: z.array(acceptanceCriterionItemSchema).optional().default([]),
   status: taskStatusEnum.optional().default('backlog'),
   priority: taskPriorityEnum.optional().default('medium'),
   assignee_user_id: z.string().uuid().nullable().optional(),
@@ -64,6 +71,7 @@ export const createTaskSchema = z.object({
 export const updateTaskSchema = z.object({
   title: z.string().min(1).max(500).optional(),
   description: z.string().max(4000).nullable().optional(),
+  acceptance_criteria: z.array(acceptanceCriterionItemSchema).optional(),
   status: taskStatusEnum.optional(),
   priority: taskPriorityEnum.optional(),
   assignee_user_id: z.string().uuid().nullable().optional(),

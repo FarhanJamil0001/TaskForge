@@ -2,21 +2,18 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import {
+  formatShortMonthDayFromYmd,
+  isYmdBeforeLocalToday,
+} from '@/lib/local-calendar-date';
 
 function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  const month = date.toLocaleString('default', { month: 'short' });
-  const day = date.getDate();
-  return `${month} ${day}`;
-}
-
-function toYMD(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  return formatShortMonthDayFromYmd(dateStr) || '—';
 }
 
 function isOverdue(dateStr: string | null): boolean {
   if (!dateStr) return false;
-  return new Date(dateStr) < new Date();
+  return isYmdBeforeLocalToday(dateStr);
 }
 
 const POPOVER_W = 280;
@@ -98,7 +95,10 @@ export function EditableDueDateCell({
   function setQuickDate(offsetDays: number) {
     const d = new Date();
     d.setDate(d.getDate() + offsetDays);
-    handleDateSelect(toYMD(d));
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    handleDateSelect(`${y}-${m}-${day}`);
   }
 
   return (

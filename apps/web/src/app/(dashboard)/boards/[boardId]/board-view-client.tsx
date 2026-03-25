@@ -5,6 +5,7 @@ import { BoardTable } from '@/components/board-table';
 import { DocumentHub, type ProjectDocument } from '@/components/document-hub';
 import { DiscordPanel } from '@/components/discord-panel';
 import type { Task } from '@taskforge/shared';
+import type { SiblingBoardOption } from '@/components/board-table';
 
 type Tab = 'table' | 'documents';
 
@@ -19,6 +20,7 @@ export function BoardViewClient({
   initialTasks,
   userId,
   initialDocs,
+  siblingBoards = [],
 }: {
   boardId: string;
   boardName: string;
@@ -30,6 +32,7 @@ export function BoardViewClient({
   initialTasks: Task[];
   userId: string;
   initialDocs: ProjectDocument[];
+  siblingBoards?: SiblingBoardOption[];
 }) {
   const [tab, setTab] = useState<Tab>('table');
 
@@ -99,6 +102,7 @@ export function BoardViewClient({
           orgId={orgId}
           initialTasks={initialTasks}
           userId={userId}
+          siblingBoards={siblingBoards}
         />
       )}
       {tab === 'documents' && (

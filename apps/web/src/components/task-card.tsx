@@ -3,6 +3,9 @@
 import { useDraggable } from '@dnd-kit/core';
 import type { Task } from '@taskforge/shared';
 
+import { plainTextFromHtml } from '@/lib/plain-text-from-html';
+import { startOfLocalDayFromYmd } from '@/lib/local-calendar-date';
+
 const priorityColors: Record<string, string> = {
   high: 'bg-red-100 text-red-700',
   medium: 'bg-yellow-100 text-yellow-700',
@@ -39,7 +42,9 @@ export function TaskCard({
     >
       <p className="text-sm font-medium text-gray-800">{task.title}</p>
       {task.description && (
-        <p className="mt-1 line-clamp-2 text-xs text-gray-500">{task.description}</p>
+        <p className="mt-1 line-clamp-2 text-xs text-gray-500">
+          {plainTextFromHtml(task.description)}
+        </p>
       )}
       <div className="mt-2 flex items-center gap-2">
         <span
@@ -49,7 +54,7 @@ export function TaskCard({
         </span>
         {task.due_date && (
           <span className="text-[10px] text-gray-400">
-            Due {new Date(task.due_date).toLocaleDateString()}
+            Due {startOfLocalDayFromYmd(task.due_date).toLocaleDateString()}
           </span>
         )}
         {task.discord_message_url && (

@@ -429,6 +429,14 @@ export function ProjectViewClient({
                 orgId={orgId}
                 initialTasks={tasksByBoardId[view.board_id] ?? []}
                 userId={userId}
+                siblingBoards={views
+                  .filter(
+                    (v) =>
+                      v.type === 'board' &&
+                      v.board_id &&
+                      v.board_id !== view.board_id,
+                  )
+                  .map((v) => ({ id: v.board_id as string, name: v.name }))}
               />
             )}
             {view.type === 'documents' && (

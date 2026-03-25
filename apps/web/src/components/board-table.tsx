@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   DndContext,
   DragEndEvent,
@@ -19,9 +20,11 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { createClient } from '@/lib/supabase/client';
+import { plainTextFromHtml } from '@/lib/plain-text-from-html';
+import { startOfLocalDayFromYmd } from '@/lib/local-calendar-date';
 import type { Task, TaskStatus, TaskPriority, BoardGroup } from '@taskforge/shared';
 import { BoardToolbar, type SortField, type SortDir } from './board-toolbar';
-import { GroupSection, type GroupConfig } from './group-section';
+import { GroupSection, type GroupConfig, type TableSelection } from './group-section';
 import { MobileTaskList } from './mobile-task-list';
 import { TaskDetailDrawer } from './task-detail-drawer';
 
@@ -57,6 +60,98 @@ interface OrgMember {
   last_name?: string;
   role: string;
   created_at: string;
+}
+
+// ── Two-click delete button (avoids jarring window.confirm) ──
+
+function BulkDeleteButton({
+  count,
+  onConfirm,
+}: {
+  count: number;
+  onConfirm: () => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!confirming) return;
+    timerRef.current = setTimeout(() => setConfirming(false), 3000);
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [confirming]);
+
+  if (confirming) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setConfirming(false);
+          onConfirm();
+        }}
+        className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-red-700 active:scale-95"
+      >
+        Confirm delete ({count})
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setConfirming(true)}
+      className="rounded-md px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+    >
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="mr-1 inline-block stroke-current align-[-2px]">
+        <path d="M2 4h10M5 4V3a1 1 0 011-1h2a1 1 0 011 1v1M3 4v8a1 1 0 001 1h6a1 1 0 001-1V4" strokeWidth="1.2" strokeLinecap="round" />
+        <path d="M6 6.5v4M8 6.5v4" strokeWidth="1.2" strokeLinecap="round" />
+      </svg>
+      Delete
+    </button>
+  );
+}
+
+// ── Two-click delete for context menu ──
+
+function ContextMenuDelete({
+  count,
+  onConfirm,
+}: {
+  count: number;
+  onConfirm: () => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+
+  if (confirming) {
+    return (
+      <button
+        type="button"
+        role="menuitem"
+        className="flex w-full items-center px-3 py-2 text-left text-sm font-semibold text-white bg-red-600 transition hover:bg-red-700"
+        onClick={onConfirm}
+      >
+        Confirm delete ({count})
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      className="flex w-full items-center px-3 py-2 text-left text-sm text-status-red transition hover:bg-red-50 dark:hover:bg-red-900/20"
+      onClick={() => setConfirming(true)}
+    >
+      Delete
+    </button>
+  );
 }
 
 // ── Add Custom Group inline form ──
@@ -284,6 +379,7 @@ function SortableGroupItem({
   sortField,
   sortDir,
   onSortChange,
+  tableSelection,
 }: {
   group: BoardGroup;
   groupTasks: Task[];
@@ -307,6 +403,7 @@ function SortableGroupItem({
   sortField: SortField;
   sortDir: SortDir;
   onSortChange: (field: SortField, dir: SortDir) => void;
+  tableSelection: TableSelection;
 }) {
   const sortableId = `${GROUP_ID_PREFIX}${group.id}`;
   const {
@@ -357,11 +454,14 @@ function SortableGroupItem({
           sortField={sortField}
           sortDir={sortDir}
           onSortChange={onSortChange}
+          selection={tableSelection}
         />
       )}
     </div>
   );
 }
+
+export type SiblingBoardOption = { id: string; name: string };
 
 // ── Main component ──
 
@@ -370,11 +470,14 @@ export function BoardTable({
   orgId,
   initialTasks,
   userId,
+  siblingBoards = [],
 }: {
   boardId: string;
   orgId: string;
   initialTasks: Task[];
   userId: string;
+  /** Other boards in the same project (for moving tasks between tables/tabs). */
+  siblingBoards?: SiblingBoardOption[];
 }) {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [customGroups, setCustomGroups] = useState<BoardGroup[]>([]);
@@ -387,6 +490,13 @@ export function BoardTable({
   const [addingGroup, setAddingGroup] = useState<string | null>(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    taskIds: string[];
+  } | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
   const editTaskRef = useRef(editTask);
   editTaskRef.current = editTask;
@@ -623,9 +733,15 @@ export function BoardTable({
           cmp = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
           break;
         case 'due_date': {
-          const aDate = a.due_date ? new Date(a.due_date).getTime() : Infinity;
-          const bDate = b.due_date ? new Date(b.due_date).getTime() : Infinity;
-          cmp = aDate - bDate;
+          const aDate = a.due_date
+            ? startOfLocalDayFromYmd(a.due_date).getTime()
+            : Infinity;
+          const bDate = b.due_date
+            ? startOfLocalDayFromYmd(b.due_date).getTime()
+            : Infinity;
+          cmp =
+            (Number.isNaN(aDate) ? Infinity : aDate) -
+            (Number.isNaN(bDate) ? Infinity : bDate);
           break;
         }
         case 'status':
@@ -762,6 +878,122 @@ export function BoardTable({
     [supabase],
   );
 
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (tasks.some((t) => t.id === id)) next.add(id);
+      }
+      return next.size === prev.size ? prev : next;
+    });
+  }, [tasks]);
+
+  useEffect(() => {
+    if (!contextMenu) return;
+    function closeOnPointer(e: PointerEvent) {
+      if (contextMenuRef.current?.contains(e.target as Node)) return;
+      setContextMenu(null);
+    }
+    document.addEventListener('pointerdown', closeOnPointer);
+    return () => document.removeEventListener('pointerdown', closeOnPointer);
+  }, [contextMenu]);
+
+  useEffect(() => {
+    if (selectedIds.size === 0 && !contextMenu) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setContextMenu(null);
+        setSelectedIds(new Set());
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selectedIds.size, contextMenu]);
+
+  const tableSelection = useMemo<TableSelection>(
+    () => ({
+      selectedIds,
+      onToggleTask: (id) => {
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          if (next.has(id)) next.delete(id);
+          else next.add(id);
+          return next;
+        });
+      },
+      onSelectAllInSection: (ids, select) => {
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          if (select) ids.forEach((i) => next.add(i));
+          else ids.forEach((i) => next.delete(i));
+          return next;
+        });
+      },
+      onRowContextMenu: (e, task) => {
+        e.preventDefault();
+        const ids =
+          selectedIds.has(task.id) && selectedIds.size > 0 ? [...selectedIds] : [task.id];
+        setContextMenu({ x: e.clientX, y: e.clientY, taskIds: ids });
+      },
+    }),
+    [selectedIds],
+  );
+
+  const applyBulkPatch = useCallback(
+    async (ids: string[], updates: Partial<Task>) => {
+      const unique = [...new Set(ids)];
+      if (unique.length === 0) return;
+      setTasks((prev) =>
+        prev.map((t) => (unique.includes(t.id) ? { ...t, ...updates } : t)),
+      );
+      const cur = editTaskRef.current;
+      if (cur && unique.includes(cur.id)) {
+        setEditTask((t) => (t ? { ...t, ...updates } : t));
+      }
+      await supabase.from('tasks').update(updates).in('id', unique);
+    },
+    [supabase],
+  );
+
+  const handleBulkMoveToBoard = useCallback(
+    async (targetBoardId: string, ids: string[]) => {
+      const unique = [...new Set(ids)];
+      if (unique.length === 0 || targetBoardId === boardId) return;
+      await supabase
+        .from('tasks')
+        .update({ board_id: targetBoardId, group_id: null })
+        .in('id', unique);
+      setTasks((prev) => prev.filter((t) => !unique.includes(t.id)));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        unique.forEach((id) => next.delete(id));
+        return next;
+      });
+      const cur = editTaskRef.current;
+      if (cur && unique.includes(cur.id)) setEditTask(null);
+      setContextMenu(null);
+    },
+    [boardId, supabase],
+  );
+
+  const handleBulkDelete = useCallback(
+    async (ids: string[]) => {
+      const unique = [...new Set(ids)];
+      if (unique.length === 0) return;
+      setTasks((prev) => prev.filter((t) => !unique.includes(t.id)));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        unique.forEach((id) => next.delete(id));
+        return next;
+      });
+      const cur = editTaskRef.current;
+      if (cur && unique.includes(cur.id)) setEditTask(null);
+      setContextMenu(null);
+      await supabase.from('tasks').delete().in('id', unique);
+    },
+    [supabase],
+  );
+
   const handleNewTask = useCallback(() => {
     expandGroup('backlog');
     setAddingGroup('backlog');
@@ -870,6 +1102,7 @@ export function BoardTable({
               setSortField(field);
               setSortDir(dir);
             }}
+            selection={tableSelection}
           />
 
           {/* Custom groups (sortable, always in the middle) */}
@@ -905,6 +1138,7 @@ export function BoardTable({
                   setSortField(field);
                   setSortDir(dir);
                 }}
+                tableSelection={tableSelection}
               />
             ))}
           </SortableContext>
@@ -932,6 +1166,7 @@ export function BoardTable({
               setSortField(field);
               setSortDir(dir);
             }}
+            selection={tableSelection}
           />
 
           <AddGroupButton onAdd={handleAddCustomGroup} />
@@ -941,7 +1176,9 @@ export function BoardTable({
           <div className="w-80 rotate-2 rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-zinc-600 dark:bg-zinc-800">
             <p className="text-sm font-medium text-gray-800 dark:text-zinc-100">{activeTask.title}</p>
               {activeTask.description && (
-                <p className="mt-1 line-clamp-1 text-xs text-gray-500 dark:text-zinc-400">{activeTask.description}</p>
+                <p className="mt-1 line-clamp-1 text-xs text-gray-500 dark:text-zinc-400">
+                  {plainTextFromHtml(activeTask.description)}
+                </p>
               )}
               <div className="mt-2 flex items-center gap-2">
                 <span
@@ -951,7 +1188,8 @@ export function BoardTable({
                 </span>
                 {activeTask.due_date && (
                   <span className="text-[10px] text-gray-400 dark:text-zinc-500">
-                    Due {new Date(activeTask.due_date).toLocaleDateString()}
+                    Due{' '}
+                    {startOfLocalDayFromYmd(activeTask.due_date).toLocaleDateString()}
                   </span>
                 )}
               </div>
@@ -986,6 +1224,9 @@ export function BoardTable({
                 board_id: boardId,
                 title: `${editTask.title} (copy)`,
                 description: editTask.description,
+                acceptance_criteria: (editTask.acceptance_criteria ?? []).map(
+                  (ac: { id: string; text: string }) => ({ ...ac, checked: false }),
+                ),
                 status: editTask.status,
                 priority: editTask.priority,
                 assignee_user_id: editTask.assignee_user_id,
@@ -1003,6 +1244,179 @@ export function BoardTable({
           orgMembers={orgMembers}
         />
       )}
+
+      {contextMenu &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            ref={contextMenuRef}
+            className="fixed z-[200] min-w-[200px] overflow-hidden rounded-lg border border-monday-border bg-white py-1 text-sm shadow-xl dark:border-zinc-600 dark:bg-zinc-800"
+            style={{
+              left: Math.max(
+                8,
+                Math.min(
+                  contextMenu.x,
+                  typeof window !== 'undefined' ? window.innerWidth - 220 : contextMenu.x,
+                ),
+              ),
+              top: Math.max(
+                8,
+                Math.min(
+                  contextMenu.y,
+                  typeof window !== 'undefined' ? window.innerHeight - 280 : contextMenu.y,
+                ),
+              ),
+            }}
+            role="menu"
+          >
+            <div className="px-3 py-1.5 text-xs text-txt-secondary dark:text-zinc-400">
+              {contextMenu.taskIds.length} task{contextMenu.taskIds.length === 1 ? '' : 's'}
+            </div>
+            {siblingBoards.length > 0 ? (
+              <>
+                <div className="border-t border-monday-border px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-txt-secondary dark:border-zinc-600 dark:text-zinc-500">
+                  Move to table
+                </div>
+                {siblingBoards.map((b) => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full items-center px-3 py-2 text-left text-txt-primary transition hover:bg-gray-50 dark:text-zinc-100 dark:hover:bg-zinc-700"
+                    onClick={() => void handleBulkMoveToBoard(b.id, contextMenu.taskIds)}
+                  >
+                    {b.name}
+                  </button>
+                ))}
+              </>
+            ) : null}
+            <div className="border-t border-monday-border dark:border-zinc-600" />
+            <ContextMenuDelete
+              count={contextMenu.taskIds.length}
+              onConfirm={() => void handleBulkDelete(contextMenu.taskIds)}
+            />
+          </div>,
+          document.body,
+        )}
+
+      {selectedIds.size > 0 &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div className="fixed inset-x-0 bottom-6 z-[150] hidden justify-center md:flex">
+            <div className="flex items-center gap-3 rounded-xl border border-monday-border bg-white px-4 py-2.5 shadow-2xl dark:border-zinc-600 dark:bg-zinc-800">
+              <span className="text-sm font-semibold text-txt-primary dark:text-zinc-100">
+                {selectedIds.size} selected
+              </span>
+
+              <span className="h-5 w-px bg-monday-border dark:bg-zinc-600" aria-hidden />
+
+              <select
+                className="h-8 rounded-md border border-monday-border bg-white px-2 text-xs text-txt-primary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
+                defaultValue=""
+                onChange={(e) => {
+                  const v = e.target.value as TaskStatus | '';
+                  if (!v) return;
+                  void applyBulkPatch([...selectedIds], { status: v });
+                  e.target.value = '';
+                }}
+              >
+                <option value="" disabled>Status…</option>
+                <option value="backlog">Not started</option>
+                <option value="in_progress">Working on it</option>
+                <option value="needs_testing">Needs testing</option>
+                <option value="done">Done</option>
+              </select>
+
+              <select
+                className="h-8 rounded-md border border-monday-border bg-white px-2 text-xs text-txt-primary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
+                defaultValue=""
+                onChange={(e) => {
+                  const v = e.target.value as TaskPriority | '';
+                  if (!v) return;
+                  void applyBulkPatch([...selectedIds], { priority: v });
+                  e.target.value = '';
+                }}
+              >
+                <option value="" disabled>Priority…</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+
+              <select
+                className="h-8 rounded-md border border-monday-border bg-white px-2 text-xs text-txt-primary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
+                defaultValue=""
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === '') return;
+                  const assignee = v === '__none__' ? null : v;
+                  void applyBulkPatch([...selectedIds], { assignee_user_id: assignee });
+                  e.target.value = '';
+                }}
+              >
+                <option value="" disabled>Owner…</option>
+                <option value="__none__">Unassigned</option>
+                {orgMembers.map((m) => (
+                  <option key={m.user_id} value={m.user_id}>
+                    {[m.first_name, m.last_name].filter(Boolean).join(' ') || m.email}
+                  </option>
+                ))}
+              </select>
+
+              <label className="flex items-center gap-1.5 text-xs text-txt-secondary dark:text-zinc-400">
+                <span>Due</span>
+                <input
+                  type="date"
+                  className="h-8 rounded-md border border-monday-border bg-white px-2 text-xs text-txt-primary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (!v) return;
+                    void applyBulkPatch([...selectedIds], { due_date: v });
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+
+              {siblingBoards.length > 0 && (
+                <select
+                  className="h-8 rounded-md border border-monday-border bg-white px-2 text-xs text-txt-primary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
+                  defaultValue=""
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (!v) return;
+                    void handleBulkMoveToBoard(v, [...selectedIds]);
+                    e.target.value = '';
+                  }}
+                >
+                  <option value="" disabled>Move to…</option>
+                  {siblingBoards.map((b) => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              )}
+
+              <span className="h-5 w-px bg-monday-border dark:bg-zinc-600" aria-hidden />
+
+              <BulkDeleteButton
+                count={selectedIds.size}
+                onConfirm={() => void handleBulkDelete([...selectedIds])}
+              />
+
+              <button
+                type="button"
+                onClick={() => setSelectedIds(new Set())}
+                className="ml-1 flex h-7 w-7 items-center justify-center rounded-full text-txt-secondary transition hover:bg-gray-100 hover:text-txt-primary dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+                title="Clear selection"
+                aria-label="Clear selection"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="stroke-current">
+                  <path d="M3 3l8 8M11 3l-8 8" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
