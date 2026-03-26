@@ -19,12 +19,20 @@ const PRIORITY_CONFIG_DARK: Record<TaskPriority, { label: string; bg: string }> 
 
 const DROPDOWN_W = 140;
 
+const COMPACT_LABELS: Record<TaskPriority, string> = {
+  high: 'High',
+  medium: 'Med',
+  low: 'Low',
+};
+
 export function PriorityPill({
   priority,
   onChange,
+  size = 'default',
 }: {
   priority: TaskPriority;
   onChange: (p: TaskPriority) => void;
+  size?: 'default' | 'compact';
 }) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
@@ -72,20 +80,26 @@ export function PriorityPill({
   }, [open, updatePosition]);
 
   const config = PRIORITY_CONFIG[priority];
+  const isCompact = size === 'compact';
 
   return (
-    <div className="w-full">
+    <div className={isCompact ? 'w-[3.25rem] shrink-0' : 'w-full'}>
       <button
         ref={buttonRef}
+        type="button"
         onClick={(e) => {
           e.stopPropagation();
           setOpen(!open);
         }}
         onPointerDown={(e) => e.stopPropagation()}
-        className="flex h-[34px] w-full items-center justify-center rounded-[2px] text-xs font-medium text-white transition-opacity hover:opacity-90"
+        className={
+          isCompact
+            ? 'flex h-5 w-full max-w-full items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-none text-white transition-opacity hover:opacity-90'
+            : 'flex h-[34px] w-full items-center justify-center rounded-[2px] text-xs font-medium text-white transition-opacity hover:opacity-90'
+        }
         style={{ backgroundColor: config.bg }}
       >
-        {config.label}
+        {isCompact ? COMPACT_LABELS[priority] : config.label}
       </button>
       {open &&
         createPortal(

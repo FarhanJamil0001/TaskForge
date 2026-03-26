@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import type { Task, TaskStatus, TaskPriority } from '@taskforge/shared';
+import { buildTaskTreeRows, type TaskRow } from '@/lib/task-tree-rows';
 import {
   EditableTitleCell,
   GripIcon,
@@ -100,6 +101,7 @@ function MyTasksTaskRow({
   onDescriptionChange,
   onTitleChange,
   orgMembers,
+  depth = 0,
 }: {
   task: Task;
   projectId: string;
@@ -112,6 +114,7 @@ function MyTasksTaskRow({
   onDescriptionChange: (taskId: string, description: string | null) => void;
   onTitleChange: (taskId: string, title: string) => void;
   orgMembers: OrgMember[];
+  depth?: number;
 }) {
   return (
     <div
@@ -123,6 +126,7 @@ function MyTasksTaskRow({
         onTaskClick={onTaskClick}
         onTitleChange={onTitleChange}
         GripIcon={GripIcon}
+        depth={depth}
       />
 
       <div className="flex items-center border-l border-monday-border px-2 py-1">
@@ -234,6 +238,7 @@ function TaskSection({
   label,
   color,
   tasks,
+  taskRows,
   collapsed,
   onToggle,
   renderRow,
@@ -244,14 +249,17 @@ function TaskSection({
   label: string;
   color: string;
   tasks: TaskWithProject[];
+  taskRows?: TaskRow[];
   collapsed: boolean;
   onToggle: () => void;
-  renderRow: (task: TaskWithProject) => React.ReactNode;
+  renderRow: (task: TaskWithProject, depth: number) => React.ReactNode;
   sortField: SortField;
   sortDir: SortDir;
   onSortChange: (field: SortField, dir: SortDir) => void;
 }) {
   if (tasks.length === 0) return null;
+
+  const rows = taskRows ?? tasks.map((t) => ({ task: t, depth: 0 }));
 
   return (
     <div className="mb-5">
@@ -346,7 +354,7 @@ function TaskSection({
               </div>
               <div className="border-l border-monday-border px-2 py-2.5 text-center dark:border-zinc-600">Notes</div>
             </div>
-            {tasks.map((task) => renderRow(task))}
+            {rows.map(({ task, depth }) => renderRow(task as TaskWithProject, depth))}
           </div>
         </div>
       )}
@@ -375,10 +383,18 @@ export function MyTasksClient({
   const [filterPriority, setFilterPriority] = useState<TaskPriority | 'all'>('all');
   const supabase = createClient();
 
-  const filteredAndSortedTasks = useMemo(() => {
-    let result = [...tasks];
+  const taskIds = useMemo(() => new Set(tasks.map((t) => t.id)), [tasks]);
 
-    // Hide completed unless toggled
+  const effectiveRoots = useMemo(() => {
+    const ids = taskIds;
+    return tasks.filter(
+      (t) => !t.parent_task_id || !ids.has(t.parent_task_id),
+    );
+  }, [tasks, taskIds]);
+
+  const filteredAndSortedRoots = useMemo(() => {
+    let result = [...effectiveRoots];
+
     if (!showCompleted) {
       result = result.filter((t) => t.status !== 'done');
     }
@@ -445,10 +461,9 @@ export function MyTasksClient({
     });
 
     return result;
-  }, [tasks, search, sortField, sortDir, filterPriority, showCompleted]);
+  }, [effectiveRoots, search, sortField, sortDir, filterPriority, showCompleted]);
 
-  // Split into needs-testing vs the rest, then bucket the rest by date
-  const { needsTestingTasks, dateBuckets, completedTasks } = useMemo(() => {
+  const { needsTestingRoots, dateBucketRoots, completedRoots } = useMemo(() => {
     const needsTesting: TaskWithProject[] = [];
     const completed: TaskWithProject[] = [];
     const buckets: Record<DateBucket, TaskWithProject[]> = {
@@ -460,7 +475,7 @@ export function MyTasksClient({
       no_date: [],
     };
 
-    for (const t of filteredAndSortedTasks) {
+    for (const t of filteredAndSortedRoots) {
       if (t.status === 'done') {
         completed.push(t);
       } else if (t.status === 'needs_testing') {
@@ -470,8 +485,33 @@ export function MyTasksClient({
       }
     }
 
-    return { needsTestingTasks: needsTesting, dateBuckets: buckets, completedTasks: completed };
-  }, [filteredAndSortedTasks]);
+    return { needsTestingRoots: needsTesting, dateBucketRoots: buckets, completedRoots: completed };
+  }, [filteredAndSortedRoots]);
+
+  const needsTestingRows = useMemo(
+    () => buildTaskTreeRows(tasks, needsTestingRoots),
+    [tasks, needsTestingRoots],
+  );
+
+  const dateBucketRows = useMemo(() => {
+    const result: Record<DateBucket, TaskRow[]> = {
+      overdue: [],
+      today: [],
+      tomorrow: [],
+      next_7_days: [],
+      later: [],
+      no_date: [],
+    };
+    for (const key of Object.keys(dateBucketRoots) as DateBucket[]) {
+      result[key] = buildTaskTreeRows(tasks, dateBucketRoots[key]);
+    }
+    return result;
+  }, [tasks, dateBucketRoots]);
+
+  const completedRows = useMemo(
+    () => buildTaskTreeRows(tasks, completedRoots),
+    [tasks, completedRoots],
+  );
 
   useEffect(() => {
     setTasks(initialTasks);
@@ -509,7 +549,7 @@ export function MyTasksClient({
   }, []);
 
   const renderRow = useCallback(
-    (task: TaskWithProject) => (
+    (task: TaskWithProject, depth: number = 0) => (
       <MyTasksTaskRow
         key={task.id}
         task={task}
@@ -523,12 +563,13 @@ export function MyTasksClient({
         onDescriptionChange={(id, desc) => handleUpdate(id, { description: desc })}
         onTitleChange={(id, t) => handleUpdate(id, { title: t })}
         orgMembers={orgMembers}
+        depth={depth}
       />
     ),
     [handleUpdate, orgMembers],
   );
 
-  const incompleteTotalCount = tasks.filter((t) => t.status !== 'done').length;
+  const incompleteTotalCount = effectiveRoots.filter((t) => t.status !== 'done').length;
 
   return (
     <div>
@@ -617,7 +658,8 @@ export function MyTasksClient({
               <TaskSection
                 label="Needs Testing"
                 color="#A25DDC"
-                tasks={needsTestingTasks}
+                tasks={needsTestingRoots}
+                taskRows={needsTestingRows}
                 collapsed={collapsedSections.has('needs_testing')}
                 onToggle={() => toggleSection('needs_testing')}
                 renderRow={renderRow}
@@ -631,13 +673,15 @@ export function MyTasksClient({
 
               {/* Date-based buckets */}
               {DATE_BUCKETS.map((bucket) => {
-                const bucketTasks = dateBuckets[bucket.key];
+                const bucketRoots = dateBucketRoots[bucket.key];
+                const bucketRows = dateBucketRows[bucket.key];
                 return (
                   <TaskSection
                     key={bucket.key}
                     label={bucket.label}
                     color={bucket.color}
-                    tasks={bucketTasks}
+                    tasks={bucketRoots}
+                    taskRows={bucketRows}
                     collapsed={collapsedSections.has(bucket.key)}
                     onToggle={() => toggleSection(bucket.key)}
                     renderRow={renderRow}
@@ -656,7 +700,8 @@ export function MyTasksClient({
                 <TaskSection
                   label="Completed"
                   color="#00C875"
-                  tasks={completedTasks}
+                  tasks={completedRoots}
+                  taskRows={completedRows}
                   collapsed={collapsedSections.has('done')}
                   onToggle={() => toggleSection('done')}
                   renderRow={renderRow}
@@ -679,6 +724,19 @@ export function MyTasksClient({
           onClose={() => setEditTask(null)}
           onUpdate={(updates) => handleUpdate(editTask.id, updates)}
           onDelete={() => handleDelete(editTask.id)}
+          onNavigateToTask={(t) => setEditTask(t as typeof editTask)}
+          onTaskCreated={(created) => {
+            setTasks((prev) => {
+              if (prev.some((t) => t.id === created.id)) return prev;
+              const row: TaskWithProject = {
+                ...created,
+                acceptance_criteria: created.acceptance_criteria ?? [],
+                project_id: editTask.project_id,
+                project_name: editTask.project_name,
+              };
+              return [row, ...prev];
+            });
+          }}
           orgMembers={orgMembers}
         />
       )}

@@ -48,6 +48,7 @@ export interface Task {
   id: string;
   board_id: string;
   group_id: string | null;
+  parent_task_id: string | null;
   title: string;
   description: string | null;
   acceptance_criteria: AcceptanceCriterionItem[];

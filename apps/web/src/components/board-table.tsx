@@ -23,6 +23,7 @@ import { createClient } from '@/lib/supabase/client';
 import { plainTextFromHtml } from '@/lib/plain-text-from-html';
 import { startOfLocalDayFromYmd } from '@/lib/local-calendar-date';
 import type { Task, TaskStatus, TaskPriority, BoardGroup } from '@taskforge/shared';
+import { buildTaskTreeRows, type TaskRow } from '@/lib/task-tree-rows';
 import { BoardToolbar, type SortField, type SortDir } from './board-toolbar';
 import { GroupSection, type GroupConfig, type TableSelection } from './group-section';
 import { MobileTaskList } from './mobile-task-list';
@@ -359,6 +360,7 @@ const GROUP_ID_PREFIX = 'group:';
 function SortableGroupItem({
   group,
   groupTasks,
+  groupTaskRows,
   isCollapsed,
   toggleGroup,
   onRename,
@@ -383,6 +385,7 @@ function SortableGroupItem({
 }: {
   group: BoardGroup;
   groupTasks: Task[];
+  groupTaskRows: TaskRow[];
   isCollapsed: boolean;
   toggleGroup: (id: string) => void;
   onRename: (id: string, name: string) => void;
@@ -436,6 +439,7 @@ function SortableGroupItem({
         <GroupSection
           group={{ status: 'backlog', label: group.name, color: group.color }}
           tasks={groupTasks}
+          taskRows={groupTaskRows}
           collapsed={false}
           onToggleCollapse={() => toggleGroup(group.id)}
           onTaskClick={setEditTask}
@@ -707,8 +711,8 @@ export function BoardTable({
     [tasks, supabase, customGroups, handleReorderGroups],
   );
 
-  const filteredAndSortedTasks = useMemo(() => {
-    let result = [...tasks];
+  const filteredAndSortedRoots = useMemo(() => {
+    let result = tasks.filter((t) => !t.parent_task_id);
 
     if (search) {
       const q = search.toLowerCase();
@@ -765,6 +769,11 @@ export function BoardTable({
 
     return result;
   }, [tasks, search, sortField, sortDir, filterPriority]);
+
+  const treeRows = useMemo(
+    () => buildTaskTreeRows(tasks, filteredAndSortedRoots),
+    [tasks, filteredAndSortedRoots],
+  );
 
   const toggleGroup = useCallback((key: string) => {
     setCollapsedGroups((prev) => {
@@ -1038,10 +1047,27 @@ export function BoardTable({
     [supabase],
   );
 
-  // Tasks not assigned to any custom group, split by default status groups
-  const ungroupedTasks = useMemo(
-    () => filteredAndSortedTasks.filter((t) => !t.group_id),
-    [filteredAndSortedTasks],
+  const ungroupedRoots = useMemo(
+    () => filteredAndSortedRoots.filter((t) => !t.group_id),
+    [filteredAndSortedRoots],
+  );
+
+  const todoRoots = useMemo(
+    () => ungroupedRoots.filter((t) => t.status !== 'done'),
+    [ungroupedRoots],
+  );
+  const todoRows = useMemo(
+    () => buildTaskTreeRows(tasks, todoRoots),
+    [tasks, todoRoots],
+  );
+
+  const doneRoots = useMemo(
+    () => ungroupedRoots.filter((t) => t.status === 'done'),
+    [ungroupedRoots],
+  );
+  const doneRows = useMemo(
+    () => buildTaskTreeRows(tasks, doneRoots),
+    [tasks, doneRoots],
   );
 
   return (
@@ -1062,7 +1088,8 @@ export function BoardTable({
 
       {/* Mobile: card-based task list */}
       <MobileTaskList
-        tasks={filteredAndSortedTasks}
+        tasks={filteredAndSortedRoots}
+        taskRows={treeRows}
         orgMembers={orgMembers}
         onTaskClick={setEditTask}
         onStatusChange={handleStatusChange}
@@ -1082,7 +1109,8 @@ export function BoardTable({
           {/* To-Do: always at top */}
           <GroupSection
             group={DEFAULT_GROUPS[0]}
-            tasks={ungroupedTasks.filter((t) => t.status !== 'done')}
+            tasks={todoRoots}
+            taskRows={todoRows}
             collapsed={collapsedGroups.has('backlog')}
             onToggleCollapse={() => toggleGroup('backlog')}
             onTaskClick={setEditTask}
@@ -1110,11 +1138,14 @@ export function BoardTable({
             items={customGroups.map((g) => `${GROUP_ID_PREFIX}${g.id}`)}
             strategy={verticalListSortingStrategy}
           >
-            {customGroups.map((cg) => (
+            {customGroups.map((cg) => {
+              const cgRoots = filteredAndSortedRoots.filter((t) => t.group_id === cg.id);
+              return (
               <SortableGroupItem
                 key={cg.id}
                 group={cg}
-                groupTasks={filteredAndSortedTasks.filter((t) => t.group_id === cg.id)}
+                groupTasks={cgRoots}
+                groupTaskRows={buildTaskTreeRows(tasks, cgRoots)}
                 isCollapsed={collapsedGroups.has(cg.id)}
                 toggleGroup={toggleGroup}
                 onRename={handleRenameGroup}
@@ -1140,13 +1171,15 @@ export function BoardTable({
                 }}
                 tableSelection={tableSelection}
               />
-            ))}
+              );
+            })}
           </SortableContext>
 
           {/* Done: always at bottom */}
           <GroupSection
             group={DEFAULT_GROUPS[1]}
-            tasks={ungroupedTasks.filter((t) => t.status === 'done')}
+            tasks={doneRoots}
+            taskRows={doneRows}
             collapsed={collapsedGroups.has('done')}
             onToggleCollapse={() => toggleGroup('done')}
             onTaskClick={setEditTask}
@@ -1217,6 +1250,17 @@ export function BoardTable({
           onClose={() => setEditTask(null)}
           onUpdate={(updates) => handleUpdateTask(editTask.id, updates)}
           onDelete={() => handleDeleteTask(editTask.id)}
+          onNavigateToTask={(t) => setEditTask(t)}
+          onTaskCreated={(created) => {
+            setTasks((prev) => {
+              if (prev.some((t) => t.id === created.id)) return prev;
+              const row: Task = {
+                ...created,
+                acceptance_criteria: created.acceptance_criteria ?? [],
+              };
+              return [row, ...prev];
+            });
+          }}
           onDuplicate={async () => {
             const { data: newTask } = await supabase
               .from('tasks')
@@ -1232,6 +1276,7 @@ export function BoardTable({
                 assignee_user_id: editTask.assignee_user_id,
                 due_date: editTask.due_date,
                 group_id: editTask.group_id,
+                parent_task_id: editTask.parent_task_id,
                 created_by: userId,
               })
               .select()

@@ -21,12 +21,21 @@ const STATUS_CONFIG_DARK: Record<TaskStatus, { label: string; bg: string }> = {
 
 const DROPDOWN_W = 160;
 
+const COMPACT_LABELS: Record<TaskStatus, string> = {
+  backlog: 'To Do',
+  in_progress: 'Active',
+  needs_testing: 'Testing',
+  done: 'Done',
+};
+
 export function StatusPill({
   status,
   onChange,
+  size = 'default',
 }: {
   status: TaskStatus;
   onChange: (s: TaskStatus) => void;
+  size?: 'default' | 'compact';
 }) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
@@ -74,20 +83,26 @@ export function StatusPill({
   }, [open, updatePosition]);
 
   const config = STATUS_CONFIG[status];
+  const isCompact = size === 'compact';
 
   return (
-    <div className="w-full">
+    <div className={isCompact ? 'w-[5.25rem] shrink-0' : 'w-full'}>
       <button
         ref={buttonRef}
+        type="button"
         onClick={(e) => {
           e.stopPropagation();
           setOpen(!open);
         }}
         onPointerDown={(e) => e.stopPropagation()}
-        className="flex h-[34px] w-full items-center justify-center rounded-[2px] text-xs font-medium text-white transition-opacity hover:opacity-90"
+        className={
+          isCompact
+            ? 'flex h-5 w-full max-w-full items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-none text-white transition-opacity hover:opacity-90'
+            : 'flex h-[34px] w-full items-center justify-center rounded-[2px] text-xs font-medium text-white transition-opacity hover:opacity-90'
+        }
         style={{ backgroundColor: config.bg }}
       >
-        {config.label}
+        {isCompact ? COMPACT_LABELS[status] : config.label}
       </button>
       {open &&
         createPortal(

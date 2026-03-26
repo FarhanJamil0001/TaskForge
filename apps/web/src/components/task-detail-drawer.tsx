@@ -29,6 +29,9 @@ interface TaskDetailDrawerProps {
   onUpdate: (updates: Partial<Task>) => void;
   onDelete: () => void;
   onDuplicate?: () => void;
+  onNavigateToTask?: (task: Task) => void;
+  /** Called when a new subtask row is inserted (keeps board / list state in sync without waiting on realtime). */
+  onTaskCreated?: (task: Task) => void;
   orgMembers: OrgMember[];
 }
 
@@ -434,6 +437,225 @@ function ActivityItem({
   );
 }
 
+// ── Subtasks Section ──
+
+function SubtasksSection({
+  task,
+  onNavigateToTask,
+  onTaskCreated,
+}: {
+  task: Task;
+  onNavigateToTask?: (task: Task) => void;
+  onTaskCreated?: (task: Task) => void;
+}) {
+  const [subtasks, setSubtasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newTitle, setNewTitle] = useState('');
+  const [showInput, setShowInput] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const fetchSubtasks = useCallback(async () => {
+    const { createClient } = await import('@/lib/supabase/client');
+    const supabase = createClient();
+    const { data } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('parent_task_id', task.id)
+      .order('created_at', { ascending: true });
+    if (data) setSubtasks(data);
+    setLoading(false);
+  }, [task.id]);
+
+  useEffect(() => {
+    fetchSubtasks();
+  }, [fetchSubtasks]);
+
+  useEffect(() => {
+    if (showInput) inputRef.current?.focus();
+  }, [showInput]);
+
+  const handleAdd = useCallback(async () => {
+    const trimmed = newTitle.trim();
+    if (!trimmed) return;
+    const { createClient } = await import('@/lib/supabase/client');
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: newTask } = await supabase
+      .from('tasks')
+      .insert({
+        board_id: task.board_id,
+        title: trimmed,
+        parent_task_id: task.id,
+        status: 'backlog' as TaskStatus,
+        priority: 'medium' as TaskPriority,
+        due_date: task.due_date,
+        assignee_user_id: task.assignee_user_id,
+        created_by: user.id,
+      })
+      .select()
+      .single();
+    if (newTask) {
+      const row = newTask as Task;
+      const normalized: Task = {
+        ...row,
+        acceptance_criteria: row.acceptance_criteria ?? [],
+      };
+      setSubtasks((prev) => [...prev, normalized]);
+      onTaskCreated?.(normalized);
+    }
+    setNewTitle('');
+  }, [newTitle, task.id, task.board_id, task.due_date, task.assignee_user_id, onTaskCreated]);
+
+  const handleSubtaskStatusChange = useCallback(
+    async (subId: string, status: TaskStatus) => {
+      setSubtasks((prev) =>
+        prev.map((t) => (t.id === subId ? { ...t, status } : t)),
+      );
+      const { createClient } = await import('@/lib/supabase/client');
+      const supabase = createClient();
+      await supabase.from('tasks').update({ status }).eq('id', subId);
+    },
+    [],
+  );
+
+  const handleSubtaskPriorityChange = useCallback(
+    async (subId: string, priority: TaskPriority) => {
+      setSubtasks((prev) =>
+        prev.map((t) => (t.id === subId ? { ...t, priority } : t)),
+      );
+      const { createClient } = await import('@/lib/supabase/client');
+      const supabase = createClient();
+      await supabase.from('tasks').update({ priority }).eq('id', subId);
+    },
+    [],
+  );
+
+  const doneCount = subtasks.filter((s) => s.status === 'done').length;
+
+  return (
+    <div className="mb-6">
+      <div className="mb-3 flex items-center gap-2">
+        <h3 className="text-xs font-medium uppercase tracking-wider text-txt-secondary dark:text-zinc-400">
+          Subtasks
+        </h3>
+        {subtasks.length > 0 && (
+          <span className="rounded-full bg-brand-100 px-2 py-0.5 text-[10px] font-semibold text-brand-700 dark:bg-brand-900/40 dark:text-brand-300">
+            {doneCount}/{subtasks.length}
+          </span>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-monday-border dark:border-zinc-700">
+        {loading ? (
+          <div className="px-4 py-3 text-sm text-txt-secondary dark:text-zinc-500">
+            Loading...
+          </div>
+        ) : subtasks.length > 0 ? (
+          <ul className="divide-y divide-monday-border dark:divide-zinc-700">
+            {subtasks.map((sub) => (
+              <li
+                key={sub.id}
+                onClick={() => onNavigateToTask?.(sub)}
+                className="group flex cursor-pointer items-center gap-3 px-4 py-2.5 transition hover:bg-surface-hover dark:hover:bg-zinc-800/50"
+              >
+                <div
+                  className="shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
+                >
+                  <StatusPill
+                    size="compact"
+                    status={sub.status}
+                    onChange={(s) => handleSubtaskStatusChange(sub.id, s)}
+                  />
+                </div>
+                <span
+                  className={`min-w-0 flex-1 truncate text-sm ${
+                    sub.status === 'done'
+                      ? 'text-txt-secondary line-through dark:text-zinc-500'
+                      : 'text-txt-primary dark:text-zinc-200'
+                  }`}
+                >
+                  {sub.title}
+                </span>
+                <div
+                  className="shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
+                >
+                  <PriorityPill
+                    size="compact"
+                    priority={sub.priority}
+                    onChange={(p) => handleSubtaskPriorityChange(sub.id, p)}
+                  />
+                </div>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 14 14"
+                  fill="none"
+                  className="shrink-0 text-txt-secondary opacity-0 transition group-hover:opacity-100 dark:text-zinc-500"
+                >
+                  <path
+                    d="M5 3L9 7L5 11"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        {showInput ? (
+          <div className="flex items-center gap-2 px-4 py-2.5">
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Subtask title..."
+              className="flex-1 bg-transparent text-sm text-txt-primary placeholder-txt-secondary outline-none dark:text-zinc-200 dark:placeholder-zinc-500"
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleAdd();
+                  inputRef.current?.focus();
+                }
+                if (e.key === 'Escape') {
+                  setNewTitle('');
+                  setShowInput(false);
+                }
+              }}
+              onBlur={() => {
+                if (!newTitle.trim()) setShowInput(false);
+              }}
+            />
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowInput(true)}
+            className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-txt-secondary transition hover:bg-surface-hover hover:text-txt-primary dark:text-zinc-400 dark:hover:bg-zinc-800/50 dark:hover:text-zinc-200"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path
+                d="M7 3V11M3 7H11"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+            Add subtask
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Acceptance Criteria Section ──
 
 function AcceptanceCriteriaSection({
@@ -644,6 +866,8 @@ export function TaskDetailDrawer({
   onUpdate,
   onDelete,
   onDuplicate,
+  onNavigateToTask,
+  onTaskCreated,
   orgMembers,
 }: TaskDetailDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -655,6 +879,7 @@ export function TaskDetailDrawer({
   >([]);
   const [commentText, setCommentText] = useState('');
   const [copiedLink, setCopiedLink] = useState(false);
+  const [parentTask, setParentTask] = useState<Task | null>(null);
 
   const drawerRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -707,6 +932,25 @@ export function TaskDetailDrawer({
     }
     loadActivity();
   }, [task.id]);
+
+  // Load parent task for breadcrumb
+  useEffect(() => {
+    if (!task.parent_task_id) {
+      setParentTask(null);
+      return;
+    }
+    async function loadParent() {
+      const { createClient } = await import('@/lib/supabase/client');
+      const supabase = createClient();
+      const { data } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('id', task.parent_task_id!)
+        .single();
+      if (data) setParentTask(data);
+    }
+    loadParent();
+  }, [task.parent_task_id]);
 
   function handleClose() {
     setIsOpen(false);
@@ -849,6 +1093,26 @@ export function TaskDetailDrawer({
         {/* ── Scrollable Body ── */}
         <div className="flex-1 overflow-y-auto">
           <div className="px-6 py-5">
+            {/* Parent breadcrumb */}
+            {parentTask && onNavigateToTask && (
+              <button
+                type="button"
+                onClick={() => onNavigateToTask(parentTask)}
+                className="mb-3 flex items-center gap-1.5 text-xs text-txt-secondary transition hover:text-brand-600 dark:text-zinc-400 dark:hover:text-brand-400"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path
+                    d="M9 11L5 7L9 3"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                <span className="max-w-[280px] truncate">{parentTask.title}</span>
+              </button>
+            )}
+
             {/* Task Title */}
             <div className="mb-6">
               {editingTitle ? (
@@ -978,6 +1242,13 @@ export function TaskDetailDrawer({
             <AcceptanceCriteriaSection
               items={task.acceptance_criteria ?? []}
               onChange={(items) => onUpdate({ acceptance_criteria: items } as Partial<Task>)}
+            />
+
+            {/* ── Subtasks ── */}
+            <SubtasksSection
+              task={task}
+              onNavigateToTask={onNavigateToTask}
+              onTaskCreated={onTaskCreated}
             />
 
             {/* Discord info */}

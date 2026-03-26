@@ -66,6 +66,7 @@ export const createTaskSchema = z.object({
   assignee_user_id: z.string().uuid().nullable().optional(),
   due_date: z.string().nullable().optional(),
   group_id: z.string().uuid().nullable().optional(),
+  parent_task_id: z.string().uuid().nullable().optional(),
 });
 
 export const updateTaskSchema = z.object({
@@ -77,6 +78,7 @@ export const updateTaskSchema = z.object({
   assignee_user_id: z.string().uuid().nullable().optional(),
   due_date: z.string().nullable().optional(),
   group_id: z.string().uuid().nullable().optional(),
+  parent_task_id: z.string().uuid().nullable().optional(),
 });
 
 export const completeTaskFromBotSchema = z.object({

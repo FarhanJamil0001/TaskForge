@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, type MouseEvent as ReactMouseEvent } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import type { Task, TaskStatus, TaskPriority } from '@taskforge/shared';
+import type { TaskRow } from '@/lib/task-tree-rows';
 import type { SortField, SortDir } from './board-toolbar';
 import { StatusPill } from './status-pill';
 import { PriorityPill } from './priority-pill';
@@ -36,6 +37,7 @@ export interface TableSelection {
 interface GroupSectionProps {
   group: GroupConfig;
   tasks: Task[];
+  taskRows?: TaskRow[];
   collapsed: boolean;
   onToggleCollapse: () => void;
   onTaskClick: (task: Task) => void;
@@ -106,12 +108,14 @@ export function EditableTitleCell({
   onTitleChange,
   GripIcon,
   dragHandleProps,
+  depth = 0,
 }: {
   task: Task;
   onTaskClick: (task: Task) => void;
   onTitleChange: (taskId: string, title: string) => void;
   GripIcon: () => JSX.Element;
   dragHandleProps?: { attributes: object; listeners: object | undefined };
+  depth?: number;
 }) {
   const [editing, setEditing] = useState(false);
   const [localTitle, setLocalTitle] = useState(task.title);
@@ -150,7 +154,21 @@ export function EditableTitleCell({
   const { onPointerDown: gripOnPointerDown, ...gripRestListeners } = gripListeners ?? {};
 
   return (
-    <div className="flex min-w-0 items-center px-2 py-2 font-medium text-txt-primary dark:text-zinc-100">
+    <div
+      className="flex min-w-0 items-center px-2 py-2 font-medium text-txt-primary dark:text-zinc-100"
+      style={depth > 0 ? { paddingLeft: `${0.5 + depth * 1.25}rem` } : undefined}
+    >
+      {depth > 0 && (
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="none"
+          className="mr-1.5 shrink-0 text-gray-300 dark:text-zinc-600"
+        >
+          <path d="M3 2V8H9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
       {dragHandleProps ? (
         <div
           {...dragHandleProps.attributes}
@@ -292,6 +310,7 @@ function DraggableTaskRow({
   onTitleChange,
   orgMembers,
   selection,
+  depth = 0,
 }: {
   task: Task;
   onTaskClick: (task: Task) => void;
@@ -303,6 +322,7 @@ function DraggableTaskRow({
   onTitleChange: (taskId: string, title: string) => void;
   orgMembers: OrgMember[];
   selection?: TableSelection;
+  depth?: number;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: task.id,
@@ -350,6 +370,7 @@ function DraggableTaskRow({
         onTitleChange={onTitleChange}
         GripIcon={GripIcon}
         dragHandleProps={{ attributes, listeners: listeners ?? {} }}
+        depth={depth}
       />
 
       {/* Owner */}
@@ -413,6 +434,7 @@ const QUICK_ADD_GROUPS: TaskStatus[] = ['backlog', 'in_progress', 'needs_testing
 export function GroupSection({
   group,
   tasks,
+  taskRows,
   collapsed,
   onToggleCollapse,
   onTaskClick,
@@ -619,7 +641,7 @@ export function GroupSection({
             </div>
 
             {/* Task rows */}
-            {tasks.map((task) => (
+            {(taskRows ?? tasks.map((t) => ({ task: t, depth: 0 }))).map(({ task, depth }) => (
               <DraggableTaskRow
                 key={task.id}
                 task={task}
@@ -632,6 +654,7 @@ export function GroupSection({
                 onTitleChange={onTitleChange}
                 orgMembers={orgMembers}
                 selection={selection}
+                depth={depth}
               />
             ))}
           </div>

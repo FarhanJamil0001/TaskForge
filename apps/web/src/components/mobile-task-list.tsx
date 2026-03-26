@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { Task, TaskStatus, TaskPriority } from '@taskforge/shared';
+import type { TaskRow } from '@/lib/task-tree-rows';
 import { plainTextFromHtml } from '@/lib/plain-text-from-html';
 import { formatShortMonthDayFromYmd } from '@/lib/local-calendar-date';
 import { StatusPill } from './status-pill';
@@ -28,6 +29,7 @@ interface OrgMember {
 
 interface MobileTaskListProps {
   tasks: Task[];
+  taskRows?: TaskRow[];
   orgMembers: OrgMember[];
   onTaskClick: (task: Task) => void;
   onStatusChange: (taskId: string, status: TaskStatus) => void;
@@ -44,6 +46,7 @@ function TaskCard({
   onStatusChange,
   onPriorityChange,
   onAssigneeChange,
+  depth = 0,
 }: {
   task: Task;
   groupColor: string;
@@ -52,6 +55,7 @@ function TaskCard({
   onStatusChange: (taskId: string, status: TaskStatus) => void;
   onPriorityChange: (taskId: string, priority: TaskPriority) => void;
   onAssigneeChange: (taskId: string, assigneeUserId: string | null) => void;
+  depth?: number;
 }) {
   return (
     <div
@@ -65,6 +69,7 @@ function TaskCard({
         }
       }}
       className="flex w-full cursor-pointer overflow-hidden rounded-xl border border-monday-border bg-white text-left shadow-sm transition active:scale-[0.99] dark:border-zinc-600 dark:bg-zinc-800"
+      style={depth > 0 ? { marginLeft: `${depth * 1}rem` } : undefined}
     >
       {/* Left accent bar */}
       <div
@@ -123,6 +128,7 @@ function TaskCard({
 
 export function MobileTaskList({
   tasks,
+  taskRows,
   orgMembers,
   onTaskClick,
   onStatusChange,
@@ -130,10 +136,25 @@ export function MobileTaskList({
   onAssigneeChange,
   onAddTask,
 }: MobileTaskListProps) {
+  const rows = taskRows ?? tasks.map((t) => ({ task: t, depth: 0 }));
+
+  const sectionRows = useMemo(() => {
+    const map = new Map<TaskStatus, typeof rows>();
+    for (const g of GROUPS) map.set(g.status, []);
+
+    let currentStatus: TaskStatus | null = null;
+    for (const row of rows) {
+      if (row.depth === 0) currentStatus = row.task.status;
+      if (currentStatus) map.get(currentStatus)?.push(row);
+    }
+    return map;
+  }, [rows]);
+
   return (
     <div className="space-y-6 md:hidden">
       {GROUPS.map((group) => {
-        const groupTasks = tasks.filter((t) => t.status === group.status);
+        const groupRows = sectionRows.get(group.status) ?? [];
+        const rootCount = groupRows.filter((r) => r.depth === 0).length;
         return (
           <section key={group.status} className="rounded-xl border border-monday-border bg-white p-4 shadow-sm dark:border-zinc-600 dark:bg-zinc-800">
             <div className="mb-4 flex items-center gap-3">
@@ -143,11 +164,11 @@ export function MobileTaskList({
               />
               <h3 className="font-semibold text-txt-primary dark:text-zinc-100">{group.label}</h3>
               <span className="ml-auto text-xs text-txt-secondary dark:text-zinc-400">
-                {groupTasks.length}
+                {rootCount}
               </span>
             </div>
             <div className="space-y-3">
-              {groupTasks.map((task) => (
+              {groupRows.map(({ task, depth }) => (
                 <TaskCard
                   key={task.id}
                   task={task}
@@ -157,6 +178,7 @@ export function MobileTaskList({
                   onStatusChange={onStatusChange}
                   onPriorityChange={onPriorityChange}
                   onAssigneeChange={onAssigneeChange}
+                  depth={depth}
                 />
               ))}
               <AddTaskRow group={group} onAdd={onAddTask} />
