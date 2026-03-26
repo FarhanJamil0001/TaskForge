@@ -102,6 +102,9 @@ const COL_GRID = 'grid-cols-[minmax(280px,2.5fr)_90px_140px_120px_110px_minmax(1
 const COL_GRID_WITH_SELECT =
   'grid-cols-[36px_minmax(280px,2.5fr)_90px_140px_120px_110px_minmax(120px,1.5fr)]';
 
+/** Fixed height so long notes/descriptions do not stretch board rows */
+const TASK_TABLE_DATA_ROW_CLASS = 'h-[52px] min-h-[52px] max-h-[52px]';
+
 export function EditableTitleCell({
   task,
   onTaskClick,
@@ -155,7 +158,7 @@ export function EditableTitleCell({
 
   return (
     <div
-      className="flex min-w-0 items-center px-2 py-2 font-medium text-txt-primary dark:text-zinc-100"
+      className="flex min-h-0 min-w-0 items-center overflow-hidden px-2 py-1.5 font-medium text-txt-primary dark:text-zinc-100"
       style={depth > 0 ? { paddingLeft: `${0.5 + depth * 1.25}rem` } : undefined}
     >
       {depth > 0 && (
@@ -343,7 +346,7 @@ function DraggableTaskRow({
       }}
       onClick={() => onTaskClick(task)}
       onContextMenu={(e) => selection?.onRowContextMenu(e, task)}
-      className={`group/row grid cursor-pointer ${
+      className={`group/row grid cursor-pointer ${TASK_TABLE_DATA_ROW_CLASS} ${
         selection ? COL_GRID_WITH_SELECT : COL_GRID
       } border-b border-monday-border text-sm transition-colors last:border-b-0 hover:bg-[#F5F6F8] dark:border-zinc-600 dark:hover:bg-zinc-700/50 ${
         isDragging ? 'opacity-30' : ''
@@ -351,7 +354,7 @@ function DraggableTaskRow({
     >
       {selection ? (
         <div
-          className="flex items-center justify-center border-r border-monday-border dark:border-zinc-600"
+          className="flex min-h-0 items-center justify-center overflow-hidden border-r border-monday-border dark:border-zinc-600"
           onClick={(e) => e.stopPropagation()}
         >
           <input
@@ -375,7 +378,7 @@ function DraggableTaskRow({
 
       {/* Owner */}
       <div
-        className="flex items-center border-l border-monday-border py-1"
+        className="flex min-h-0 min-w-0 items-center overflow-hidden border-l border-monday-border py-1"
         onClick={(e) => e.stopPropagation()}
       >
         <EditableOwnerCell
@@ -387,7 +390,7 @@ function DraggableTaskRow({
 
       {/* Status */}
       <div
-        className="flex items-center border-l border-monday-border p-1"
+        className="flex min-h-0 min-w-0 items-center overflow-hidden border-l border-monday-border p-1"
         onClick={(e) => e.stopPropagation()}
       >
         <StatusPill status={task.status} onChange={(s) => onStatusChange(task.id, s)} />
@@ -395,7 +398,7 @@ function DraggableTaskRow({
 
       {/* Due date */}
       <div
-        className="flex items-center border-l border-monday-border px-2 py-1"
+        className="flex min-h-0 min-w-0 items-center overflow-hidden border-l border-monday-border px-2 py-1"
         onClick={(e) => e.stopPropagation()}
       >
         <EditableDueDateCell
@@ -406,7 +409,7 @@ function DraggableTaskRow({
 
       {/* Priority */}
       <div
-        className="flex items-center border-l border-monday-border p-1"
+        className="flex min-h-0 min-w-0 items-center overflow-hidden border-l border-monday-border p-1"
         onClick={(e) => e.stopPropagation()}
       >
         <PriorityPill
@@ -417,7 +420,7 @@ function DraggableTaskRow({
 
       {/* Notes */}
       <div
-        className="flex items-center border-l border-monday-border px-2 py-1"
+        className="flex min-h-0 min-w-0 items-center overflow-hidden border-l border-monday-border px-2 py-0.5"
         onClick={(e) => e.stopPropagation()}
       >
         <EditableNotesCell

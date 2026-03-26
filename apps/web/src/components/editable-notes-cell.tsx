@@ -102,7 +102,7 @@ export function EditableNotesCell({
   }, [open]);
 
   return (
-    <div className="flex w-full">
+    <div className="flex h-full min-h-0 min-w-0 max-w-full items-center overflow-hidden">
       <button
         ref={buttonRef}
         onClick={(e) => {
@@ -110,9 +110,9 @@ export function EditableNotesCell({
           setOpen(!open);
         }}
         onPointerDown={(e) => e.stopPropagation()}
-        className="min-h-[34px] w-full cursor-text rounded px-3 py-2 text-left text-[13px] text-txt-secondary transition-colors hover:bg-gray-100 hover:text-txt-primary dark:text-zinc-400 dark:hover:bg-zinc-700/50 dark:hover:text-zinc-100"
+        className="max-h-full min-h-0 w-full min-w-0 cursor-text overflow-hidden rounded px-2 py-0.5 text-left text-[13px] leading-snug text-txt-secondary transition-colors hover:bg-gray-100 hover:text-txt-primary dark:text-zinc-400 dark:hover:bg-zinc-700/50 dark:hover:text-zinc-100"
       >
-        <span className="line-clamp-2 block break-words">
+        <span className="line-clamp-2 block min-w-0 break-words">
           {previewText || 'Add notes...'}
         </span>
       </button>

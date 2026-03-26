@@ -36,6 +36,8 @@ interface OrgMember {
 const COL_GRID =
   'grid-cols-[minmax(280px,2.5fr)_minmax(100px,1fr)_90px_140px_120px_110px_minmax(120px,1.5fr)]';
 
+const TASK_TABLE_DATA_ROW_CLASS = 'h-[52px] min-h-[52px] max-h-[52px]';
+
 const PRIORITY_ORDER: Record<TaskPriority, number> = {
   high: 3,
   medium: 2,
@@ -118,7 +120,7 @@ function MyTasksTaskRow({
 }) {
   return (
     <div
-      className={`group/row grid cursor-pointer ${COL_GRID} border-b border-monday-border text-sm transition-colors last:border-b-0 hover:bg-[#F5F6F8]`}
+      className={`group/row grid cursor-pointer ${TASK_TABLE_DATA_ROW_CLASS} ${COL_GRID} border-b border-monday-border text-sm transition-colors last:border-b-0 hover:bg-[#F5F6F8]`}
       onClick={() => onTaskClick(task)}
     >
       <EditableTitleCell
@@ -129,7 +131,7 @@ function MyTasksTaskRow({
         depth={depth}
       />
 
-      <div className="flex items-center border-l border-monday-border px-2 py-1">
+      <div className="flex min-h-0 min-w-0 items-center overflow-hidden border-l border-monday-border px-2 py-1">
         <Link
           href={`/projects/${projectId}`}
           onClick={(e) => e.stopPropagation()}
@@ -140,7 +142,7 @@ function MyTasksTaskRow({
       </div>
 
       <div
-        className="flex items-center border-l border-monday-border py-1"
+        className="flex min-h-0 min-w-0 items-center overflow-hidden border-l border-monday-border py-1"
         onClick={(e) => e.stopPropagation()}
       >
         <EditableOwnerCell
@@ -151,7 +153,7 @@ function MyTasksTaskRow({
       </div>
 
       <div
-        className="flex items-center border-l border-monday-border p-1"
+        className="flex min-h-0 min-w-0 items-center overflow-hidden border-l border-monday-border p-1"
         onClick={(e) => e.stopPropagation()}
       >
         <StatusPill
@@ -161,7 +163,7 @@ function MyTasksTaskRow({
       </div>
 
       <div
-        className="flex items-center border-l border-monday-border px-2 py-1"
+        className="flex min-h-0 min-w-0 items-center overflow-hidden border-l border-monday-border px-2 py-1"
         onClick={(e) => e.stopPropagation()}
       >
         <EditableDueDateCell
@@ -171,7 +173,7 @@ function MyTasksTaskRow({
       </div>
 
       <div
-        className="flex items-center border-l border-monday-border p-1"
+        className="flex min-h-0 min-w-0 items-center overflow-hidden border-l border-monday-border p-1"
         onClick={(e) => e.stopPropagation()}
       >
         <PriorityPill
@@ -181,7 +183,7 @@ function MyTasksTaskRow({
       </div>
 
       <div
-        className="flex items-center border-l border-monday-border px-2 py-1"
+        className="flex min-h-0 min-w-0 items-center overflow-hidden border-l border-monday-border px-2 py-0.5"
         onClick={(e) => e.stopPropagation()}
       >
         <EditableNotesCell
