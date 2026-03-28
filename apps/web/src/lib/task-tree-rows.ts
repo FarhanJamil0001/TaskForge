@@ -50,3 +50,22 @@ export function buildTaskTreeRows(
 
   return rows;
 }
+
+/**
+ * Recursively collect IDs of all descendant subtasks that are currently
+ * unassigned (assignee_user_id is null).  Used to cascade an owner
+ * assignment from a parent task down to its unassigned children.
+ */
+export function getUnassignedDescendantIds(
+  allTasks: Task[],
+  parentId: string,
+): string[] {
+  const ids: string[] = [];
+  for (const t of allTasks) {
+    if (t.parent_task_id === parentId && !t.assignee_user_id) {
+      ids.push(t.id);
+      ids.push(...getUnassignedDescendantIds(allTasks, t.id));
+    }
+  }
+  return ids;
+}

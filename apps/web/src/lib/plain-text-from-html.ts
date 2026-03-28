@@ -5,16 +5,10 @@ export function plainTextFromHtml(html: string): string {
   const raw = html.trim();
   if (!raw) return '';
 
-  if (typeof document !== 'undefined') {
-    try {
-      const doc = new DOMParser().parseFromString(raw, 'text/html');
-      const text = doc.body.textContent ?? '';
-      return collapseWhitespace(text);
-    } catch {
-      // fall through
-    }
-  }
-
+  // Always strip tags with the same regex pipeline on server and client.
+  // DOMParser + textContent differs from this (e.g. adjacent <p>/<li> nodes
+  // often concatenate with no space), which caused React hydration mismatches
+  // in components like EditableNotesCell.
   return collapseWhitespace(
     raw
       .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ' ')

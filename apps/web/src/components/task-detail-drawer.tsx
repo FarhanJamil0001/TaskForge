@@ -656,6 +656,186 @@ function SubtasksSection({
   );
 }
 
+// ── Collaborators Inline Row (inside metadata block) ──
+
+function CollaboratorsInlineRow({
+  task,
+  orgMembers,
+}: {
+  task: Task;
+  orgMembers: OrgMember[];
+}) {
+  const [collaborators, setCollaborators] = useState<
+    { id: string; user_id: string; created_at: string }[]
+  >([]);
+  const [loading, setLoading] = useState(true);
+  const [showPicker, setShowPicker] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetch() {
+      const { createClient } = await import('@/lib/supabase/client');
+      const supabase = createClient();
+      const { data } = await supabase
+        .from('task_collaborators')
+        .select('id, user_id, created_at')
+        .eq('task_id', task.id)
+        .order('created_at', { ascending: true });
+      if (!cancelled && data) setCollaborators(data);
+      if (!cancelled) setLoading(false);
+    }
+    setLoading(true);
+    fetch();
+    return () => { cancelled = true; };
+  }, [task.id]);
+
+  useEffect(() => {
+    if (!showPicker) return;
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setShowPicker(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showPicker]);
+
+  const handleAdd = useCallback(
+    async (userId: string) => {
+      if (collaborators.some((c) => c.user_id === userId)) return;
+      const tempId = crypto.randomUUID();
+      setCollaborators((prev) => [
+        ...prev,
+        { id: tempId, user_id: userId, created_at: new Date().toISOString() },
+      ]);
+      const { createClient } = await import('@/lib/supabase/client');
+      const supabase = createClient();
+      const { data } = await supabase
+        .from('task_collaborators')
+        .insert({ task_id: task.id, user_id: userId })
+        .select('id, user_id, created_at')
+        .single();
+      if (data) {
+        setCollaborators((prev) =>
+          prev.map((c) => (c.id === tempId ? data : c)),
+        );
+      }
+    },
+    [collaborators, task.id],
+  );
+
+  const handleRemove = useCallback(async (collaboratorId: string) => {
+    setCollaborators((prev) => prev.filter((c) => c.id !== collaboratorId));
+    const { createClient } = await import('@/lib/supabase/client');
+    const supabase = createClient();
+    await supabase.from('task_collaborators').delete().eq('id', collaboratorId);
+  }, []);
+
+  const collabUserIds = new Set(collaborators.map((c) => c.user_id));
+  const availableMembers = orgMembers.filter(
+    (m) => !collabUserIds.has(m.user_id) && m.user_id !== task.assignee_user_id,
+  );
+
+  if (loading) {
+    return (
+      <span className="text-sm text-txt-secondary dark:text-zinc-500">...</span>
+    );
+  }
+
+  return (
+    <div ref={ref} className="relative flex flex-wrap items-center gap-1">
+      {collaborators.map((collab) => {
+        const member = orgMembers.find((m) => m.user_id === collab.user_id);
+        const displayName = member ? getMemberDisplayName(member) : collab.user_id;
+        return (
+          <div
+            key={collab.id}
+            className="group/collab relative"
+          >
+            <MemberAvatar
+              userId={collab.user_id}
+              displayName={displayName}
+              email={member?.email}
+              size={24}
+            />
+            <button
+              onClick={() => handleRemove(collab.id)}
+              className="absolute -right-1 -top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-white opacity-0 transition group-hover/collab:opacity-100 focus:opacity-100"
+              aria-label={`Remove ${displayName}`}
+            >
+              <svg width="7" height="7" viewBox="0 0 12 12" fill="none" className="stroke-current">
+                <path d="M2 2l8 8M10 2l-8 8" strokeWidth="2.5" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+        );
+      })}
+
+      {/* Add button */}
+      <button
+        onClick={() => setShowPicker(!showPicker)}
+        aria-haspopup="listbox"
+        aria-expanded={showPicker}
+        className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-dashed border-gray-300 text-gray-400 transition hover:border-brand-500 hover:text-brand-500 dark:border-zinc-600 dark:text-zinc-500 dark:hover:border-brand-400 dark:hover:text-brand-400"
+        title="Add collaborator"
+      >
+        <svg width="10" height="10" viewBox="0 0 14 14" fill="none">
+          <path
+            d="M7 3V11M3 7H11"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+          />
+        </svg>
+      </button>
+
+      {collaborators.length === 0 && !showPicker && (
+        <span className="text-sm text-txt-secondary dark:text-zinc-400">
+          None
+        </span>
+      )}
+
+      {/* Picker dropdown */}
+      {showPicker && (
+        <div
+          role="listbox"
+          aria-label="Add collaborator"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              e.stopPropagation();
+              setShowPicker(false);
+            }
+          }}
+          className="absolute left-0 top-full z-50 mt-1 max-h-[240px] w-[240px] overflow-y-auto rounded-lg border border-monday-border bg-white py-1 shadow-xl dark:border-zinc-600 dark:bg-zinc-800"
+        >
+          {availableMembers.length === 0 ? (
+            <div className="px-3 py-2 text-sm text-txt-secondary dark:text-zinc-400">
+              No members to add
+            </div>
+          ) : (
+            availableMembers.map((m) => (
+              <button
+                key={m.id}
+                role="option"
+                onClick={() => handleAdd(m.user_id)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-txt-primary transition hover:bg-gray-50 dark:text-zinc-100 dark:hover:bg-zinc-700"
+              >
+                <MemberAvatar
+                  userId={m.user_id}
+                  displayName={getMemberDisplayName(m)}
+                  email={m.email}
+                  size={24}
+                />
+                <span className="truncate">{getMemberDisplayName(m)}</span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Acceptance Criteria Section ──
 
 function AcceptanceCriteriaSection({
@@ -1212,7 +1392,7 @@ export function TaskDetailDrawer({
               </div>
 
               {/* Priority */}
-              <div className="flex items-center px-4 py-2.5">
+              <div className="flex items-center border-b border-monday-border px-4 py-2.5 dark:border-zinc-700">
                 <span className="w-24 shrink-0 text-xs font-medium uppercase tracking-wider text-txt-secondary dark:text-zinc-400">
                   Priority
                 </span>
@@ -1221,6 +1401,16 @@ export function TaskDetailDrawer({
                     priority={task.priority}
                     onChange={(p) => onUpdate({ priority: p })}
                   />
+                </div>
+              </div>
+
+              {/* Collaborators */}
+              <div className="flex items-center px-4 py-2.5">
+                <span className="w-24 shrink-0 text-xs font-medium uppercase tracking-wider text-txt-secondary dark:text-zinc-400">
+                  Collab
+                </span>
+                <div className="flex-1">
+                  <CollaboratorsInlineRow task={task} orgMembers={orgMembers} />
                 </div>
               </div>
             </div>

@@ -23,7 +23,7 @@ import { createClient } from '@/lib/supabase/client';
 import { plainTextFromHtml } from '@/lib/plain-text-from-html';
 import { startOfLocalDayFromYmd } from '@/lib/local-calendar-date';
 import type { Task, TaskStatus, TaskPriority, BoardGroup } from '@taskforge/shared';
-import { buildTaskTreeRows, type TaskRow } from '@/lib/task-tree-rows';
+import { buildTaskTreeRows, getUnassignedDescendantIds, type TaskRow } from '@/lib/task-tree-rows';
 import { BoardToolbar, type SortField, type SortDir } from './board-toolbar';
 import { GroupSection, type GroupConfig, type TableSelection } from './group-section';
 import { MobileTaskList } from './mobile-task-list';
@@ -810,10 +810,24 @@ export function BoardTable({
 
   const handleAssigneeChange = useCallback(
     async (taskId: string, assigneeUserId: string | null) => {
-      setTasks((prev) =>
-        prev.map((t) => (t.id === taskId ? { ...t, assignee_user_id: assigneeUserId } : t)),
-      );
+      let cascadeIds: string[] = [];
+      setTasks((prev) => {
+        cascadeIds = assigneeUserId
+          ? getUnassignedDescendantIds(prev, taskId)
+          : [];
+        return prev.map((t) => {
+          if (t.id === taskId || cascadeIds.includes(t.id))
+            return { ...t, assignee_user_id: assigneeUserId };
+          return t;
+        });
+      });
       await supabase.from('tasks').update({ assignee_user_id: assigneeUserId }).eq('id', taskId);
+      if (cascadeIds.length > 0) {
+        await supabase
+          .from('tasks')
+          .update({ assignee_user_id: assigneeUserId })
+          .in('id', cascadeIds);
+      }
     },
     [supabase],
   );
@@ -872,8 +886,25 @@ export function BoardTable({
 
   const handleUpdateTask = useCallback(
     async (taskId: string, updates: Partial<Task>) => {
-      setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, ...updates } : t)));
+      let cascadeIds: string[] = [];
+      setTasks((prev) => {
+        if ('assignee_user_id' in updates && updates.assignee_user_id) {
+          cascadeIds = getUnassignedDescendantIds(prev, taskId);
+        }
+        return prev.map((t) => {
+          if (t.id === taskId) return { ...t, ...updates };
+          if (cascadeIds.includes(t.id))
+            return { ...t, assignee_user_id: updates.assignee_user_id! };
+          return t;
+        });
+      });
       await supabase.from('tasks').update(updates).eq('id', taskId);
+      if (cascadeIds.length > 0) {
+        await supabase
+          .from('tasks')
+          .update({ assignee_user_id: updates.assignee_user_id! })
+          .in('id', cascadeIds);
+      }
     },
     [supabase],
   );
@@ -952,14 +983,37 @@ export function BoardTable({
     async (ids: string[], updates: Partial<Task>) => {
       const unique = [...new Set(ids)];
       if (unique.length === 0) return;
-      setTasks((prev) =>
-        prev.map((t) => (unique.includes(t.id) ? { ...t, ...updates } : t)),
-      );
+      let cascadeIds: string[] = [];
+      setTasks((prev) => {
+        if ('assignee_user_id' in updates && updates.assignee_user_id) {
+          const allCascade = new Set<string>();
+          for (const id of unique) {
+            for (const cid of getUnassignedDescendantIds(prev, id)) {
+              allCascade.add(cid);
+            }
+          }
+          // Exclude tasks already in the direct selection
+          for (const id of unique) allCascade.delete(id);
+          cascadeIds = [...allCascade];
+        }
+        return prev.map((t) => {
+          if (unique.includes(t.id)) return { ...t, ...updates };
+          if (cascadeIds.includes(t.id))
+            return { ...t, assignee_user_id: updates.assignee_user_id! };
+          return t;
+        });
+      });
       const cur = editTaskRef.current;
       if (cur && unique.includes(cur.id)) {
         setEditTask((t) => (t ? { ...t, ...updates } : t));
       }
       await supabase.from('tasks').update(updates).in('id', unique);
+      if (cascadeIds.length > 0) {
+        await supabase
+          .from('tasks')
+          .update({ assignee_user_id: updates.assignee_user_id! })
+          .in('id', cascadeIds);
+      }
     },
     [supabase],
   );
