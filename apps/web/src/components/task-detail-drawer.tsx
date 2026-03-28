@@ -674,7 +674,9 @@ function CollaboratorsInlineRow({
 
   useEffect(() => {
     let cancelled = false;
-    async function fetch() {
+    setCollaborators([]);
+    setLoading(true);
+    async function fetchCollaborators() {
       const { createClient } = await import('@/lib/supabase/client');
       const supabase = createClient();
       const { data } = await supabase
@@ -682,12 +684,15 @@ function CollaboratorsInlineRow({
         .select('id, user_id, created_at')
         .eq('task_id', task.id)
         .order('created_at', { ascending: true });
-      if (!cancelled && data) setCollaborators(data);
-      if (!cancelled) setLoading(false);
+      if (!cancelled) {
+        setCollaborators(data ?? []);
+        setLoading(false);
+      }
     }
-    setLoading(true);
-    fetch();
-    return () => { cancelled = true; };
+    fetchCollaborators();
+    return () => {
+      cancelled = true;
+    };
   }, [task.id]);
 
   useEffect(() => {
@@ -1063,6 +1068,12 @@ export function TaskDetailDrawer({
 
   const drawerRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const [drawerWidth, setDrawerWidth] = useState<number | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const saved = localStorage.getItem('taskforge-drawer-width');
+    return saved ? Number(saved) : null;
+  });
+  const isResizing = useRef(false);
 
   const currentMember = orgMembers.find(
     (m) => m.user_id === task.assignee_user_id,
@@ -1095,6 +1106,36 @@ export function TaskDetailDrawer({
     }
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Drag-to-resize
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizing.current = true;
+    const startX = e.clientX;
+    const startWidth = drawerRef.current?.offsetWidth ?? 500;
+
+    function onMouseMove(ev: MouseEvent) {
+      if (!isResizing.current) return;
+      const delta = startX - ev.clientX;
+      const newWidth = Math.min(Math.max(startWidth + delta, 360), window.innerWidth * 0.9);
+      setDrawerWidth(newWidth);
+    }
+
+    function onMouseUp() {
+      isResizing.current = false;
+      const final = drawerRef.current?.offsetWidth;
+      if (final) localStorage.setItem('taskforge-drawer-width', String(final));
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
   }, []);
 
   // Load activity events
@@ -1190,11 +1231,19 @@ export function TaskDetailDrawer({
     >
       <div
         ref={drawerRef}
-        className={`flex h-full w-full flex-col border-l border-monday-border bg-white shadow-2xl transition-transform duration-200 ease-out dark:border-zinc-700 dark:bg-zinc-900 sm:w-[45%] sm:min-w-[420px] sm:max-w-[640px] ${
-          isOpen ? 'translate-x-0' : 'translate-x-full'
+        className={`relative flex h-full w-full flex-col border-l border-monday-border bg-white shadow-2xl dark:border-zinc-700 dark:bg-zinc-900 ${
+          drawerWidth ? '' : 'sm:w-[45%] sm:min-w-[420px] sm:max-w-[640px]'
+        } ${isOpen ? 'translate-x-0' : 'translate-x-full'} ${
+          isResizing.current ? '' : 'transition-transform duration-200 ease-out'
         }`}
+        style={drawerWidth ? { width: drawerWidth } : undefined}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Resize handle */}
+        <div
+          onMouseDown={handleResizeStart}
+          className="absolute left-0 top-0 z-10 h-full w-1.5 cursor-col-resize hover:bg-brand-500/30 active:bg-brand-500/50"
+        />
         {/* ── Sticky Header ── */}
         <div className="flex shrink-0 items-center justify-between border-b border-monday-border px-5 py-3 dark:border-zinc-700">
           <div className="flex items-center gap-2">

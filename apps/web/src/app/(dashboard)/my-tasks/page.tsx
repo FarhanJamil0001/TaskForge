@@ -57,8 +57,6 @@ export default async function MyTasksPage() {
     collabRaw = data ?? [];
   }
 
-  const collabTaskIdSet = new Set(collabOnlyIds);
-
   type RawTask = NonNullable<typeof assignedRaw>[number];
 
   function toClientTask(t: RawTask, isCollaborator: boolean) {

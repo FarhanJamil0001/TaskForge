@@ -487,9 +487,12 @@ export function MyTasksClient({
     };
 
     for (const t of filteredAndSortedRoots) {
-      if (t.status === 'done') {
+      const hasIncompleteSubtasks =
+        t.status === 'done' &&
+        tasks.some((s) => s.parent_task_id === t.id && s.status !== 'done');
+      if (t.status === 'done' && !hasIncompleteSubtasks) {
         completed.push(t);
-      } else if (t.status === 'needs_testing') {
+      } else if (t.status === 'needs_testing' && !hasIncompleteSubtasks) {
         needsTesting.push(t);
       } else {
         buckets[getDateBucket(t.due_date)].push(t);
@@ -531,17 +534,32 @@ export function MyTasksClient({
   const handleUpdate = useCallback(
     async (taskId: string, updates: Partial<Task>) => {
       let cascadeIds: string[] = [];
-      setTasks((prev) => {
-        if ('assignee_user_id' in updates && updates.assignee_user_id) {
-          cascadeIds = getUnassignedDescendantIds(prev, taskId);
+
+      // My Tasks only loads assigned/collab tasks, so the local list usually omits
+      // unassigned subtasks. Resolve descendants from the full board task set.
+      if ('assignee_user_id' in updates && updates.assignee_user_id) {
+        const { data: self } = await supabase
+          .from('tasks')
+          .select('board_id')
+          .eq('id', taskId)
+          .maybeSingle();
+        if (self?.board_id) {
+          const { data: boardTasks } = await supabase
+            .from('tasks')
+            .select('id, parent_task_id, assignee_user_id')
+            .eq('board_id', self.board_id);
+          cascadeIds = getUnassignedDescendantIds(boardTasks ?? [], taskId);
         }
-        return prev.map((t) => {
+      }
+
+      setTasks((prev) =>
+        prev.map((t) => {
           if (t.id === taskId) return { ...t, ...updates };
           if (cascadeIds.includes(t.id))
             return { ...t, assignee_user_id: updates.assignee_user_id! };
           return t;
-        });
-      });
+        }),
+      );
       await supabase.from('tasks').update(updates).eq('id', taskId);
       if (cascadeIds.length > 0) {
         await supabase

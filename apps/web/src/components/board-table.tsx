@@ -1107,8 +1107,13 @@ export function BoardTable({
   );
 
   const todoRoots = useMemo(
-    () => ungroupedRoots.filter((t) => t.status !== 'done'),
-    [ungroupedRoots],
+    () =>
+      ungroupedRoots.filter(
+        (t) =>
+          t.status !== 'done' ||
+          tasks.some((s) => s.parent_task_id === t.id && s.status !== 'done'),
+      ),
+    [ungroupedRoots, tasks],
   );
   const todoRows = useMemo(
     () => buildTaskTreeRows(tasks, todoRoots),
@@ -1116,8 +1121,13 @@ export function BoardTable({
   );
 
   const doneRoots = useMemo(
-    () => ungroupedRoots.filter((t) => t.status === 'done'),
-    [ungroupedRoots],
+    () =>
+      ungroupedRoots.filter(
+        (t) =>
+          t.status === 'done' &&
+          !tasks.some((s) => s.parent_task_id === t.id && s.status !== 'done'),
+      ),
+    [ungroupedRoots, tasks],
   );
   const doneRows = useMemo(
     () => buildTaskTreeRows(tasks, doneRoots),
