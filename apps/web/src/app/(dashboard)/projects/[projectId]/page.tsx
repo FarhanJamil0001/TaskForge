@@ -19,15 +19,15 @@ export default async function ProjectBoardPage({
 }) {
   const { projectId } = await params;
   const supabase = await createServerSupabase();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
-  const { data: project } = await supabase
-    .from('projects')
-    .select('id, name, org_id, organizations(id, name, connect_code)')
-    .eq('id', projectId)
-    .single();
+  const [{ data: { user } }, { data: project }] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase
+      .from('projects')
+      .select('id, name, org_id, organizations(id, name, connect_code)')
+      .eq('id', projectId)
+      .single(),
+  ]);
 
   if (!project) {
     return (
@@ -107,26 +107,19 @@ export default async function ProjectBoardPage({
     .filter((v) => v.type === 'board' && v.board_id)
     .map((v) => v.board_id as string);
 
-  let tasksByBoardId: Record<string, Task[]> = {};
-  if (boardIds.length > 0) {
-    const { data: tasksByBoard } = await supabase
-      .from('tasks')
-      .select('*')
-      .in('board_id', boardIds)
-      .order('created_at', { ascending: false });
+  const [tasksResult, { data: docs }] = await Promise.all([
+    boardIds.length > 0
+      ? supabase.from('tasks').select('*').in('board_id', boardIds).order('created_at', { ascending: false })
+      : Promise.resolve({ data: [] as Task[] }),
+    supabase.from('project_documents').select('*').eq('project_id', projectId).order('position', { ascending: true }),
+  ]);
 
-    for (const boardId of boardIds) {
-      tasksByBoardId[boardId] = (tasksByBoard ?? []).filter(
-        (t) => t.board_id === boardId,
-      );
-    }
+  const tasksByBoardId: Record<string, Task[]> = {};
+  for (const boardId of boardIds) {
+    tasksByBoardId[boardId] = (tasksResult.data ?? []).filter(
+      (t: Task) => t.board_id === boardId,
+    );
   }
-
-  const { data: docs } = await supabase
-    .from('project_documents')
-    .select('*')
-    .eq('project_id', projectId)
-    .order('position', { ascending: true });
 
   return (
     <ProjectViewClient

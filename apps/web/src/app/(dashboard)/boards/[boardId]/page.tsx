@@ -8,33 +8,23 @@ export default async function BoardPage({
 }) {
   const { boardId } = await params;
   const supabase = await createServerSupabase();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { data: board } = await supabase
-    .from('boards')
-    .select(
-      '*, projects!inner(id, name, org_id, organizations!inner(id, name, connect_code))',
-    )
-    .eq('id', boardId)
-    .single();
-
-  const { data: tasks } = await supabase
-    .from('tasks')
-    .select('*')
-    .eq('board_id', boardId)
-    .order('created_at', { ascending: false });
+  const [{ data: { user } }, { data: board }, { data: tasks }] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase
+      .from('boards')
+      .select('*, projects!inner(id, name, org_id, organizations!inner(id, name, connect_code))')
+      .eq('id', boardId)
+      .single(),
+    supabase
+      .from('tasks')
+      .select('*')
+      .eq('board_id', boardId)
+      .order('created_at', { ascending: false }),
+  ]);
 
   if (!board) {
     return <div className="text-center text-txt-secondary">Board not found</div>;
   }
-
-  const { data: siblingBoardRows } = await supabase
-    .from('boards')
-    .select('id, name')
-    .eq('project_id', board.project_id)
-    .neq('id', boardId);
 
   const project = board.projects as {
     id: string;
@@ -43,11 +33,10 @@ export default async function BoardPage({
     organizations: { id: string; name: string; connect_code: string | null };
   };
 
-  const { data: docs } = await supabase
-    .from('project_documents')
-    .select('*')
-    .eq('project_id', project.id)
-    .order('position', { ascending: true });
+  const [{ data: siblingBoardRows }, { data: docs }] = await Promise.all([
+    supabase.from('boards').select('id, name').eq('project_id', board.project_id).neq('id', boardId),
+    supabase.from('project_documents').select('*').eq('project_id', project.id).order('position', { ascending: true }),
+  ]);
 
   return (
     <BoardViewClient

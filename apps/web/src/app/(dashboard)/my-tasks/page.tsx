@@ -29,18 +29,18 @@ export default async function MyTasksPage() {
     )
   `;
 
-  // Tasks assigned to the user
-  const { data: assignedRaw } = await supabase
-    .from('tasks')
-    .select(taskSelect)
-    .eq('assignee_user_id', user.id)
-    .order('created_at', { ascending: false });
-
-  // Tasks where the user is a collaborator
-  const { data: collabRows } = await supabase
-    .from('task_collaborators')
-    .select('task_id')
-    .eq('user_id', user.id);
+  const [{ data: assignedRaw }, { data: collabRows }, { data: orgMembers }] = await Promise.all([
+    supabase
+      .from('tasks')
+      .select(taskSelect)
+      .eq('assignee_user_id', user.id)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('task_collaborators')
+      .select('task_id')
+      .eq('user_id', user.id),
+    supabase.rpc('get_org_members_with_email', { p_org_id: orgId }),
+  ]);
 
   const assignedIds = new Set((assignedRaw ?? []).map((t) => t.id));
   const collabOnlyIds = (collabRows ?? [])
@@ -76,10 +76,6 @@ export default async function MyTasksPage() {
     ...(assignedRaw ?? []).map((t) => toClientTask(t, false)),
     ...(collabRaw ?? []).map((t) => toClientTask(t, true)),
   ].filter((t): t is NonNullable<typeof t> => t !== null);
-
-  const { data: orgMembers } = await supabase.rpc('get_org_members_with_email', {
-    p_org_id: orgId,
-  });
 
   return (
     <MyTasksClient

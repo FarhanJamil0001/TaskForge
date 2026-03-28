@@ -150,8 +150,25 @@ export function MobileTaskList({
     return map;
   }, [rows]);
 
+  const totalTasks = rows.length;
+
   return (
     <div className="space-y-6 md:hidden">
+      {totalTasks === 0 && (
+        <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-monday-border bg-gray-50/50 py-14 dark:border-zinc-600 dark:bg-zinc-800/50">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-brand-500/10 text-brand-500">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
+              <rect x="9" y="3" width="6" height="4" rx="1" />
+              <path d="M9 12h6M9 16h6" />
+            </svg>
+          </div>
+          <h3 className="mb-1 text-lg font-semibold text-txt-primary dark:text-zinc-100">No tasks yet</h3>
+          <p className="px-6 text-center text-sm text-txt-secondary dark:text-zinc-400">
+            Tap <span className="font-medium">Add task</span> in any group below to create your first task.
+          </p>
+        </div>
+      )}
       {GROUPS.map((group) => {
         const groupRows = sectionRows.get(group.status) ?? [];
         const rootCount = groupRows.filter((r) => r.depth === 0).length;

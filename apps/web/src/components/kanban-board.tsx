@@ -126,8 +126,26 @@ export function KanbanBoard({
     setShowCreate(true);
   }
 
+  const totalTasks = tasks.length;
+
   return (
     <>
+      {totalTasks === 0 && (
+        <div className="mb-4 flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-monday-border bg-gray-50/50 py-14 dark:border-zinc-600 dark:bg-zinc-800/50">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-brand-500/10 text-brand-500">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+              <rect x="14" y="14" width="7" height="7" rx="1" />
+            </svg>
+          </div>
+          <h3 className="mb-1 text-lg font-semibold text-txt-primary dark:text-zinc-100">No tasks yet</h3>
+          <p className="text-center text-sm text-txt-secondary dark:text-zinc-400">
+            Click the <span className="font-medium">+</span> button in any column to create your first task.
+          </p>
+        </div>
+      )}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}

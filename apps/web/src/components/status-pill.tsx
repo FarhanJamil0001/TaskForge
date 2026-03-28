@@ -3,20 +3,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import type { TaskStatus } from '@taskforge/shared';
-import { useTheme } from './theme-provider';
 
-const STATUS_CONFIG_LIGHT: Record<TaskStatus, { label: string; bg: string }> = {
-  backlog: { label: 'Not Started', bg: '#C4C4C4' },
-  in_progress: { label: 'Working on it', bg: '#FDAB3D' },
-  needs_testing: { label: 'Needs Testing', bg: '#A25DDC' },
-  done: { label: 'Done', bg: '#00C875' },
-};
-
-const STATUS_CONFIG_DARK: Record<TaskStatus, { label: string; bg: string }> = {
-  backlog: { label: 'Not Started', bg: '#52525b' },
-  in_progress: { label: 'Working on it', bg: '#d97706' },
-  needs_testing: { label: 'Needs Testing', bg: '#7c3aed' },
-  done: { label: 'Done', bg: '#059669' },
+const STATUS_CONFIG: Record<TaskStatus, { label: string; bg: string }> = {
+  backlog: { label: 'Not Started', bg: 'var(--status-gray)' },
+  in_progress: { label: 'Working on it', bg: 'var(--status-orange)' },
+  needs_testing: { label: 'Needs Testing', bg: 'var(--status-testing)' },
+  done: { label: 'Done', bg: 'var(--status-green)' },
 };
 
 const DROPDOWN_W = 160;
@@ -37,10 +29,6 @@ export function StatusPill({
   onChange: (s: TaskStatus) => void;
   size?: 'default' | 'compact';
 }) {
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
-  const STATUS_CONFIG = isDark ? STATUS_CONFIG_DARK : STATUS_CONFIG_LIGHT;
-
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
