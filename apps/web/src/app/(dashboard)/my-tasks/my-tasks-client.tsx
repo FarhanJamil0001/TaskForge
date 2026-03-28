@@ -487,9 +487,9 @@ export function MyTasksClient({
     };
 
     for (const t of filteredAndSortedRoots) {
-      const hasIncompleteSubtasks =
-        t.status === 'done' &&
-        tasks.some((s) => s.parent_task_id === t.id && s.status !== 'done');
+      const hasIncompleteSubtasks = tasks.some(
+        (s) => s.parent_task_id === t.id && s.status !== 'done',
+      );
       if (t.status === 'done' && !hasIncompleteSubtasks) {
         completed.push(t);
       } else if (t.status === 'needs_testing' && !hasIncompleteSubtasks) {
@@ -500,7 +500,7 @@ export function MyTasksClient({
     }
 
     return { needsTestingRoots: needsTesting, dateBucketRoots: buckets, completedRoots: completed };
-  }, [filteredAndSortedRoots]);
+  }, [filteredAndSortedRoots, tasks]);
 
   const needsTestingRows = useMemo(
     () => buildTaskTreeRows(tasks, needsTestingRoots),

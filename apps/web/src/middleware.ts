@@ -23,9 +23,13 @@ export async function middleware(request: NextRequest) {
     },
   );
 
+  // getSession() reads the JWT from the cookie locally (no network call to
+  // Supabase Auth), making middleware significantly faster than getUser().
+  // Server components still call getUser() for verified auth on data access.
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
+  const user = session?.user ?? null;
 
   const publicPaths = ['/auth', '/access-denied', '/api/bot', '/api/check-email'];
   const isPublicPath = publicPaths.some((p) => request.nextUrl.pathname.startsWith(p));
@@ -36,7 +40,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Email allowlist: if ALLOWED_EMAILS is set, only listed emails can access
   if (user && !request.nextUrl.pathname.startsWith('/access-denied')) {
     const raw = process.env.ALLOWED_EMAILS;
     if (raw?.trim()) {

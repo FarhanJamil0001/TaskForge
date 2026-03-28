@@ -554,12 +554,17 @@ export function BoardTable({
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    // Only refetch on tab re-focus (not on a timer) — realtime handles live updates
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') refetchTasks();
+    let hiddenAt = 0;
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        hiddenAt = Date.now();
+      } else if (hiddenAt > 0 && Date.now() - hiddenAt > 5_000) {
+        refetchTasks();
+        hiddenAt = 0;
+      }
     };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
   }, [refetchTasks]);
 
   const debugRealtime = process.env.NEXT_PUBLIC_DEBUG_REALTIME === 'true';
@@ -1165,6 +1170,23 @@ export function BoardTable({
         filterPriority={filterPriority}
         onFilterChange={setFilterPriority}
       />
+
+      {/* Empty state when board has no tasks at all */}
+      {tasks.length === 0 && (
+        <div className="mt-4 flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-monday-border bg-gray-50/50 py-14 dark:border-zinc-600 dark:bg-zinc-800/50">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-brand-500/10 text-brand-500">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
+              <rect x="9" y="3" width="6" height="4" rx="1" />
+              <path d="M9 12h6M9 16h6" />
+            </svg>
+          </div>
+          <h3 className="mb-1 text-lg font-semibold text-txt-primary dark:text-zinc-100">No tasks on this board</h3>
+          <p className="text-center text-sm text-txt-secondary dark:text-zinc-400">
+            Use the <span className="font-medium">+ Add task</span> row in any group to get started.
+          </p>
+        </div>
+      )}
 
       {/* Mobile: card-based task list */}
       <MobileTaskList

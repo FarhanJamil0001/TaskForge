@@ -23,22 +23,25 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const org = membership?.organizations as unknown as { id: string; name: string } | null;
   const orgName = org?.name ?? null;
 
-  const { data: projects } = orgId
-    ? await supabase
+  let projects: { id: string; name: string; created_at: string }[] = [];
+  let views: { id: string; project_id: string; type: string; name: string; board_id: string | null; position: number }[] = [];
+
+  if (orgId) {
+    const [projectsRes, viewsRes] = await Promise.all([
+      supabase
         .from('projects')
         .select('id, name, created_at')
         .eq('org_id', orgId)
-        .order('created_at', { ascending: true })
-    : { data: [] };
-
-  const projectIds = (projects ?? []).map((p) => p.id);
-  const { data: views } = projectIds.length > 0
-    ? await supabase
+        .order('created_at', { ascending: true }),
+      supabase
         .from('project_views')
-        .select('id, project_id, type, name, board_id, position')
-        .in('project_id', projectIds)
-        .order('position', { ascending: true })
-    : { data: [] };
+        .select('id, project_id, type, name, board_id, position, projects!inner(org_id)')
+        .eq('projects.org_id', orgId)
+        .order('position', { ascending: true }),
+    ]);
+    projects = projectsRes.data ?? [];
+    views = (viewsRes.data ?? []).map(({ projects: _, ...v }: any) => v);
+  }
 
   const projectList = (projects ?? []).map((p) => ({ id: p.id, name: p.name }));
 

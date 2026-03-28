@@ -305,7 +305,19 @@ export function MembersClient({
         <h2 className="mb-3 text-sm font-semibold text-gray-700 dark:text-zinc-200">
           Members ({members.length})
         </h2>
-        <div className="divide-y divide-gray-100">
+        <div className="divide-y divide-gray-100 dark:divide-zinc-700">
+          {members.length === 0 && (
+            <div className="flex flex-col items-center py-10 text-center">
+              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-500/10 text-brand-500">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M19 8v6M22 11h-6" />
+                </svg>
+              </div>
+              <p className="text-sm text-txt-secondary dark:text-zinc-400">No members yet. Invite team members using the form above.</p>
+            </div>
+          )}
           {members.map((member) => {
             const isCurrentUser = member.user_id === currentUserId;
             const isLastAdmin = member.role === 'admin' && adminCount <= 1;

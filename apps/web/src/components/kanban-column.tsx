@@ -43,6 +43,9 @@ export function KanbanColumn({
         </button>
       </div>
       <div className="flex flex-1 flex-col gap-2 px-3 pb-3">
+        {tasks.length === 0 && (
+          <p className="py-6 text-center text-xs text-gray-400 dark:text-zinc-500">No tasks</p>
+        )}
         {tasks.map((task) => (
           <TaskCard key={task.id} task={task} onClick={() => onTaskClick(task)} />
         ))}
