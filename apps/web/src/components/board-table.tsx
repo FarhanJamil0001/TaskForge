@@ -529,21 +529,37 @@ export function BoardTable({
       .select('*')
       .eq('board_id', boardId)
       .order('created_at', { ascending: false });
-    if (data) setTasks(data);
+    if (!data) return;
+    setTasks((prev) => {
+      // Build a map of current tasks for fast lookup
+      const prevMap = new Map(prev.map((t) => [t.id, t]));
+      const nextMap = new Map(data.map((t: Task) => [t.id, t]));
+      let changed = prev.length !== data.length;
+      // Merge: keep existing references for unchanged tasks to avoid re-renders
+      const merged = data.map((t: Task) => {
+        const existing = prevMap.get(t.id);
+        if (existing && JSON.stringify(existing) === JSON.stringify(t)) return existing;
+        changed = true;
+        return t;
+      });
+      // Also check for deletions
+      if (!changed) {
+        for (const id of prevMap.keys()) {
+          if (!nextMap.has(id)) { changed = true; break; }
+        }
+      }
+      return changed ? merged : prev;
+    });
   }, [boardId, supabase]);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    const poll = () => {
+    // Only refetch on tab re-focus (not on a timer) — realtime handles live updates
+    const onVisible = () => {
       if (document.visibilityState === 'visible') refetchTasks();
     };
-    const id = setInterval(poll, 3_000);
-    const onVisible = () => refetchTasks();
     document.addEventListener('visibilitychange', onVisible);
-    return () => {
-      clearInterval(id);
-      document.removeEventListener('visibilitychange', onVisible);
-    };
+    return () => document.removeEventListener('visibilitychange', onVisible);
   }, [refetchTasks]);
 
   const debugRealtime = process.env.NEXT_PUBLIC_DEBUG_REALTIME === 'true';

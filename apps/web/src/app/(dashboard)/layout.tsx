@@ -31,12 +31,22 @@ export default async function DashboardLayout({ children }: { children: React.Re
         .order('created_at', { ascending: true })
     : { data: [] };
 
+  const projectIds = (projects ?? []).map((p) => p.id);
+  const { data: views } = projectIds.length > 0
+    ? await supabase
+        .from('project_views')
+        .select('id, project_id, type, name, board_id, position')
+        .in('project_id', projectIds)
+        .order('position', { ascending: true })
+    : { data: [] };
+
   const projectList = (projects ?? []).map((p) => ({ id: p.id, name: p.name }));
 
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar
         projects={projects ?? []}
+        views={views ?? []}
         orgId={orgId}
         orgName={orgName}
         userId={user.id}

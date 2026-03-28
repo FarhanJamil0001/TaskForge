@@ -11,6 +11,15 @@ interface SidebarProject {
   created_at: string;
 }
 
+interface SidebarView {
+  id: string;
+  project_id: string;
+  type: string;
+  name: string;
+  board_id: string | null;
+  position: number;
+}
+
 function projectColor(id: string): string {
   const hue = (id.charCodeAt(0) * 47 + id.charCodeAt(1) * 23 + id.charCodeAt(2) * 11) % 360;
   return `hsl(${hue}, 55%, 55%)`;
@@ -18,11 +27,13 @@ function projectColor(id: string): string {
 
 export function Sidebar({
   projects,
+  views,
   orgId,
   orgName,
   userId,
 }: {
   projects: SidebarProject[];
+  views: SidebarView[];
   orgId: string | null;
   orgName: string | null;
   userId: string;
@@ -69,6 +80,30 @@ export function Sidebar({
   }
 
   const activeProjectId = pathname.match(/^\/projects\/([^/]+)/)?.[1] ?? null;
+  const activeBoardId = pathname.match(/^\/boards\/([^/]+)/)?.[1] ?? null;
+
+  // Auto-expand the project that contains the active board
+  const activeBoardProjectId = activeBoardId
+    ? views.find((v) => v.board_id === activeBoardId)?.project_id ?? null
+    : null;
+
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(() => {
+    const initial = new Set<string>();
+    if (activeProjectId) initial.add(activeProjectId);
+    if (activeBoardProjectId) initial.add(activeBoardProjectId);
+    return initial;
+  });
+
+  const toggleExpand = (projectId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setExpandedProjects((prev) => {
+      const next = new Set(prev);
+      if (next.has(projectId)) next.delete(projectId);
+      else next.add(projectId);
+      return next;
+    });
+  };
 
   return (
     <aside className="hidden w-[250px] shrink-0 flex-col bg-sidebar dark:bg-zinc-950 md:flex">
@@ -135,25 +170,79 @@ export function Sidebar({
 
         <div className="flex-1 space-y-0.5 overflow-y-auto">
           {projects.map((project) => {
-            const isActive = activeProjectId === project.id;
+            const isActive = activeProjectId === project.id || activeBoardProjectId === project.id;
+            const isExpanded = expandedProjects.has(project.id);
+            const projectViews = views.filter((v) => v.project_id === project.id && v.board_id);
+
             return (
-              <Link
-                key={project.id}
-                href={`/projects/${project.id}`}
-                className={`group flex items-center gap-2.5 rounded-md px-3 py-[7px] text-[13px] font-medium transition ${
-                  isActive
-                    ? 'bg-sidebar-active text-white'
-                    : 'text-gray-300 hover:bg-sidebar-hover hover:text-white'
-                }`}
-              >
-                <span
-                  className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded text-[10px] font-bold text-white"
-                  style={{ backgroundColor: projectColor(project.id) }}
+              <div key={project.id}>
+                <div
+                  className={`group flex items-center rounded-md text-[13px] font-medium transition ${
+                    isActive
+                      ? 'bg-sidebar-active text-white'
+                      : 'text-gray-300 hover:bg-sidebar-hover hover:text-white'
+                  }`}
                 >
-                  {project.name[0]?.toUpperCase()}
-                </span>
-                <span className="truncate">{project.name}</span>
-              </Link>
+                  {/* Chevron */}
+                  {projectViews.length > 0 ? (
+                    <button
+                      onClick={(e) => toggleExpand(project.id, e)}
+                      className="flex h-full shrink-0 items-center py-[7px] pl-1.5 pr-0 text-gray-500 hover:text-white"
+                    >
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 12 12"
+                        fill="none"
+                        className={`stroke-current transition-transform duration-150 ${isExpanded ? 'rotate-90' : ''}`}
+                      >
+                        <path d="M4.5 2.5L7.5 6L4.5 9.5" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                  ) : (
+                    <span className="w-[18px] shrink-0" />
+                  )}
+
+                  <Link
+                    href={`/projects/${project.id}`}
+                    className="flex min-w-0 flex-1 items-center gap-2 py-[7px] pr-3"
+                  >
+                    <span
+                      className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded text-[10px] font-bold text-white"
+                      style={{ backgroundColor: projectColor(project.id) }}
+                    >
+                      {project.name[0]?.toUpperCase()}
+                    </span>
+                    <span className="truncate">{project.name}</span>
+                  </Link>
+                </div>
+
+                {/* Board list dropdown */}
+                {isExpanded && projectViews.length > 0 && (
+                  <div className="ml-[18px] space-y-0.5 border-l border-white/10 py-0.5 pl-2.5">
+                    {projectViews.map((view) => {
+                      const isBoardActive = activeBoardId === view.board_id;
+                      return (
+                        <Link
+                          key={view.id}
+                          href={`/boards/${view.board_id}`}
+                          className={`flex items-center gap-2 rounded-md px-2.5 py-[5px] text-[12px] transition ${
+                            isBoardActive
+                              ? 'bg-sidebar-active font-medium text-white'
+                              : 'text-gray-400 hover:bg-sidebar-hover hover:text-white'
+                          }`}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0 stroke-current">
+                            <rect x="1.5" y="2.5" width="11" height="9" rx="1.5" strokeWidth="1.1" />
+                            <path d="M5 2.5V11.5M9 2.5V11.5" strokeWidth="1.1" />
+                          </svg>
+                          <span className="truncate">{view.name}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             );
           })}
 
