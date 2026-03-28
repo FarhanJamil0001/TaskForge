@@ -100,6 +100,13 @@ export interface TaskEvent {
   created_at: string;
 }
 
+export interface TaskCollaborator {
+  id: string;
+  task_id: string;
+  user_id: string;
+  created_at: string;
+}
+
 export interface OrgInvite {
   id: string;
   org_id: string;

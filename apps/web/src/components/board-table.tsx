@@ -23,7 +23,7 @@ import { createClient } from '@/lib/supabase/client';
 import { plainTextFromHtml } from '@/lib/plain-text-from-html';
 import { startOfLocalDayFromYmd } from '@/lib/local-calendar-date';
 import type { Task, TaskStatus, TaskPriority, BoardGroup } from '@taskforge/shared';
-import { buildTaskTreeRows, type TaskRow } from '@/lib/task-tree-rows';
+import { buildTaskTreeRows, getUnassignedDescendantIds, type TaskRow } from '@/lib/task-tree-rows';
 import { BoardToolbar, type SortField, type SortDir } from './board-toolbar';
 import { GroupSection, type GroupConfig, type TableSelection } from './group-section';
 import { MobileTaskList } from './mobile-task-list';
@@ -529,21 +529,37 @@ export function BoardTable({
       .select('*')
       .eq('board_id', boardId)
       .order('created_at', { ascending: false });
-    if (data) setTasks(data);
+    if (!data) return;
+    setTasks((prev) => {
+      // Build a map of current tasks for fast lookup
+      const prevMap = new Map(prev.map((t) => [t.id, t]));
+      const nextMap = new Map(data.map((t: Task) => [t.id, t]));
+      let changed = prev.length !== data.length;
+      // Merge: keep existing references for unchanged tasks to avoid re-renders
+      const merged = data.map((t: Task) => {
+        const existing = prevMap.get(t.id);
+        if (existing && JSON.stringify(existing) === JSON.stringify(t)) return existing;
+        changed = true;
+        return t;
+      });
+      // Also check for deletions
+      if (!changed) {
+        for (const id of prevMap.keys()) {
+          if (!nextMap.has(id)) { changed = true; break; }
+        }
+      }
+      return changed ? merged : prev;
+    });
   }, [boardId, supabase]);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    const poll = () => {
+    // Only refetch on tab re-focus (not on a timer) — realtime handles live updates
+    const onVisible = () => {
       if (document.visibilityState === 'visible') refetchTasks();
     };
-    const id = setInterval(poll, 3_000);
-    const onVisible = () => refetchTasks();
     document.addEventListener('visibilitychange', onVisible);
-    return () => {
-      clearInterval(id);
-      document.removeEventListener('visibilitychange', onVisible);
-    };
+    return () => document.removeEventListener('visibilitychange', onVisible);
   }, [refetchTasks]);
 
   const debugRealtime = process.env.NEXT_PUBLIC_DEBUG_REALTIME === 'true';
@@ -810,10 +826,24 @@ export function BoardTable({
 
   const handleAssigneeChange = useCallback(
     async (taskId: string, assigneeUserId: string | null) => {
-      setTasks((prev) =>
-        prev.map((t) => (t.id === taskId ? { ...t, assignee_user_id: assigneeUserId } : t)),
-      );
+      let cascadeIds: string[] = [];
+      setTasks((prev) => {
+        cascadeIds = assigneeUserId
+          ? getUnassignedDescendantIds(prev, taskId)
+          : [];
+        return prev.map((t) => {
+          if (t.id === taskId || cascadeIds.includes(t.id))
+            return { ...t, assignee_user_id: assigneeUserId };
+          return t;
+        });
+      });
       await supabase.from('tasks').update({ assignee_user_id: assigneeUserId }).eq('id', taskId);
+      if (cascadeIds.length > 0) {
+        await supabase
+          .from('tasks')
+          .update({ assignee_user_id: assigneeUserId })
+          .in('id', cascadeIds);
+      }
     },
     [supabase],
   );
@@ -872,8 +902,25 @@ export function BoardTable({
 
   const handleUpdateTask = useCallback(
     async (taskId: string, updates: Partial<Task>) => {
-      setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, ...updates } : t)));
+      let cascadeIds: string[] = [];
+      setTasks((prev) => {
+        if ('assignee_user_id' in updates && updates.assignee_user_id) {
+          cascadeIds = getUnassignedDescendantIds(prev, taskId);
+        }
+        return prev.map((t) => {
+          if (t.id === taskId) return { ...t, ...updates };
+          if (cascadeIds.includes(t.id))
+            return { ...t, assignee_user_id: updates.assignee_user_id! };
+          return t;
+        });
+      });
       await supabase.from('tasks').update(updates).eq('id', taskId);
+      if (cascadeIds.length > 0) {
+        await supabase
+          .from('tasks')
+          .update({ assignee_user_id: updates.assignee_user_id! })
+          .in('id', cascadeIds);
+      }
     },
     [supabase],
   );
@@ -952,14 +999,37 @@ export function BoardTable({
     async (ids: string[], updates: Partial<Task>) => {
       const unique = [...new Set(ids)];
       if (unique.length === 0) return;
-      setTasks((prev) =>
-        prev.map((t) => (unique.includes(t.id) ? { ...t, ...updates } : t)),
-      );
+      let cascadeIds: string[] = [];
+      setTasks((prev) => {
+        if ('assignee_user_id' in updates && updates.assignee_user_id) {
+          const allCascade = new Set<string>();
+          for (const id of unique) {
+            for (const cid of getUnassignedDescendantIds(prev, id)) {
+              allCascade.add(cid);
+            }
+          }
+          // Exclude tasks already in the direct selection
+          for (const id of unique) allCascade.delete(id);
+          cascadeIds = [...allCascade];
+        }
+        return prev.map((t) => {
+          if (unique.includes(t.id)) return { ...t, ...updates };
+          if (cascadeIds.includes(t.id))
+            return { ...t, assignee_user_id: updates.assignee_user_id! };
+          return t;
+        });
+      });
       const cur = editTaskRef.current;
       if (cur && unique.includes(cur.id)) {
         setEditTask((t) => (t ? { ...t, ...updates } : t));
       }
       await supabase.from('tasks').update(updates).in('id', unique);
+      if (cascadeIds.length > 0) {
+        await supabase
+          .from('tasks')
+          .update({ assignee_user_id: updates.assignee_user_id! })
+          .in('id', cascadeIds);
+      }
     },
     [supabase],
   );
@@ -1053,8 +1123,13 @@ export function BoardTable({
   );
 
   const todoRoots = useMemo(
-    () => ungroupedRoots.filter((t) => t.status !== 'done'),
-    [ungroupedRoots],
+    () =>
+      ungroupedRoots.filter(
+        (t) =>
+          t.status !== 'done' ||
+          tasks.some((s) => s.parent_task_id === t.id && s.status !== 'done'),
+      ),
+    [ungroupedRoots, tasks],
   );
   const todoRows = useMemo(
     () => buildTaskTreeRows(tasks, todoRoots),
@@ -1062,8 +1137,13 @@ export function BoardTable({
   );
 
   const doneRoots = useMemo(
-    () => ungroupedRoots.filter((t) => t.status === 'done'),
-    [ungroupedRoots],
+    () =>
+      ungroupedRoots.filter(
+        (t) =>
+          t.status === 'done' &&
+          !tasks.some((s) => s.parent_task_id === t.id && s.status !== 'done'),
+      ),
+    [ungroupedRoots, tasks],
   );
   const doneRows = useMemo(
     () => buildTaskTreeRows(tasks, doneRoots),

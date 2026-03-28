@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import type { Task, TaskStatus, TaskPriority } from '@taskforge/shared';
-import { buildTaskTreeRows, type TaskRow } from '@/lib/task-tree-rows';
+import { buildTaskTreeRows, getUnassignedDescendantIds, type TaskRow } from '@/lib/task-tree-rows';
 import {
   EditableTitleCell,
   GripIcon,
@@ -21,6 +21,7 @@ import { startOfLocalDayFromYmd } from '@/lib/local-calendar-date';
 interface TaskWithProject extends Task {
   project_id: string;
   project_name: string;
+  is_collaborator?: boolean;
 }
 
 interface OrgMember {
@@ -105,7 +106,7 @@ function MyTasksTaskRow({
   orgMembers,
   depth = 0,
 }: {
-  task: Task;
+  task: TaskWithProject;
   projectId: string;
   projectName: string;
   onTaskClick: (task: Task) => void;
@@ -131,7 +132,7 @@ function MyTasksTaskRow({
         depth={depth}
       />
 
-      <div className="flex min-h-0 min-w-0 items-center overflow-hidden border-l border-monday-border px-2 py-1">
+      <div className="flex min-h-0 min-w-0 items-center gap-1.5 overflow-hidden border-l border-monday-border px-2 py-1">
         <Link
           href={`/projects/${projectId}`}
           onClick={(e) => e.stopPropagation()}
@@ -139,6 +140,14 @@ function MyTasksTaskRow({
         >
           {projectName}
         </Link>
+        {task.is_collaborator && (
+          <span
+            className="shrink-0 rounded bg-purple-100 px-1.5 py-0.5 text-[10px] font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
+            title="You are a collaborator, not the assignee"
+          >
+            Collab
+          </span>
+        )}
       </div>
 
       <div
@@ -478,9 +487,12 @@ export function MyTasksClient({
     };
 
     for (const t of filteredAndSortedRoots) {
-      if (t.status === 'done') {
+      const hasIncompleteSubtasks =
+        t.status === 'done' &&
+        tasks.some((s) => s.parent_task_id === t.id && s.status !== 'done');
+      if (t.status === 'done' && !hasIncompleteSubtasks) {
         completed.push(t);
-      } else if (t.status === 'needs_testing') {
+      } else if (t.status === 'needs_testing' && !hasIncompleteSubtasks) {
         needsTesting.push(t);
       } else {
         buckets[getDateBucket(t.due_date)].push(t);
@@ -521,10 +533,40 @@ export function MyTasksClient({
 
   const handleUpdate = useCallback(
     async (taskId: string, updates: Partial<Task>) => {
+      let cascadeIds: string[] = [];
+
+      // My Tasks only loads assigned/collab tasks, so the local list usually omits
+      // unassigned subtasks. Resolve descendants from the full board task set.
+      if ('assignee_user_id' in updates && updates.assignee_user_id) {
+        const { data: self } = await supabase
+          .from('tasks')
+          .select('board_id')
+          .eq('id', taskId)
+          .maybeSingle();
+        if (self?.board_id) {
+          const { data: boardTasks } = await supabase
+            .from('tasks')
+            .select('id, parent_task_id, assignee_user_id')
+            .eq('board_id', self.board_id);
+          cascadeIds = getUnassignedDescendantIds(boardTasks ?? [], taskId);
+        }
+      }
+
       setTasks((prev) =>
-        prev.map((t) => (t.id === taskId ? { ...t, ...updates } : t)),
+        prev.map((t) => {
+          if (t.id === taskId) return { ...t, ...updates };
+          if (cascadeIds.includes(t.id))
+            return { ...t, assignee_user_id: updates.assignee_user_id! };
+          return t;
+        }),
       );
       await supabase.from('tasks').update(updates).eq('id', taskId);
+      if (cascadeIds.length > 0) {
+        await supabase
+          .from('tasks')
+          .update({ assignee_user_id: updates.assignee_user_id! })
+          .in('id', cascadeIds);
+      }
       if (editTask?.id === taskId) {
         setEditTask((prev) => (prev ? { ...prev, ...updates } : null));
       }
@@ -579,7 +621,7 @@ export function MyTasksClient({
         <div>
           <h1 className="mb-1 text-[22px] font-bold text-txt-primary">My Tasks</h1>
           <p className="text-sm text-txt-secondary">
-            Tasks assigned to you across all projects
+            Tasks assigned to you or where you collaborate
           </p>
         </div>
       </div>
