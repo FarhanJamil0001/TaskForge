@@ -154,3 +154,7 @@ When a channel is linked to a project, every message (6+ characters, not from bo
 
 - **✅** — React with checkmark on a Discord message that has an associated task to mark it complete.
 - **❌** — React with cross mark on a Discord message that has an associated task to delete it.
+
+## Contributing
+
+Pull requests are welcome. Fork the repo, create a feature branch, and open a PR against `main`.
